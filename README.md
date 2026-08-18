@@ -6,6 +6,8 @@ Any valid completed chain wins. The exact shortest distance is a comparison, and
 
 This repository is standalone. It does not modify or depend on `aodongliu.github.io`.
 
+For deployment state and next-agent continuity, see [`AGENTS.md`](./AGENTS.md).
+
 ## Run locally
 
 Requirements:
