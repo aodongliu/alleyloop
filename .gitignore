@@ -1,0 +1,58 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
+
+# testing
+/coverage
+__pycache__/
+*.py[cod]
+
+# misc
+.DS_Store
+*.pem
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+
+# env files (can opt-in for committing if needed)
+.env*
+
+# vercel
+.vercel
+
+/dist/
+/outputs/
+/work/
+/.test-dist/
+/KaggleDataset*/
+/IMDbDataset*/
+**/KaggleDataset*/
+**/IMDbDataset*/
+
+# Raw source data stays outside the repository. Small synthetic CSV fixtures
+# under tests/data are intentionally committed.
+*.tsv
+*.tsv.gz
+*.parquet
+*.sqlite
+*.sqlite3
+*.db
+*.key
+*.p12
+
+# IMDb source snapshots and derived movie graphs stay local until their
+# non-commercial-use terms and a public deployment plan are reviewed.
+/public/data/imdb-graph.json
+/public/data/movie-puzzles.json
+/data-reports/imdb-preprocessing-report.json

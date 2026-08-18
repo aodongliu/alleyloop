@@ -1,0 +1,4 @@
+gameId,gameDateTimeEst,hometeamCity,hometeamName,hometeamId,awayteamCity,awayteamName,awayteamId,gameType,gameDate
+41900406,2020-10-11 19:30:00,Atlanta,Hawks,1610612737,Boston,Celtics,1610612738,Playoffs,2020-10-11 19:30:00
+42000001,2020-12-22 19:30:00,Atlanta,Hawks,1610612737,Boston,Celtics,1610612738,Regular Season,2020-12-22 19:30:00
+42500001,2025-10-20 19:30:00,Atlanta,Hawks,1610612737,Foreign,Club,50001,Preseason,2025-10-20 19:30:00

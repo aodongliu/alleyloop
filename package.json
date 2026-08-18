@@ -1,0 +1,41 @@
+{
+  "name": "alleyloop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "A daily teammate-connection game, starting with the NBA.",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "npm run test:core && npm run test:data && npm run data:validate",
+    "test:core": "node --experimental-strip-types --test tests/**/*.test.ts",
+    "test:data": "python3 -m unittest discover -s tests/data -p 'test_*.py' -v",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "data:build": "python3 scripts/build_nba_graph.py --input ../KaggleDataset08152026 --output public/data/nba-graph.json --report data-reports/nba-preprocessing-report.json",
+    "data:validate": "python3 scripts/validate_puzzles.py --graph public/data/nba-graph.json --puzzles public/data/nba-puzzles.json"
+  },
+  "dependencies": {
+    "react": "19.2.6",
+    "react-dom": "19.2.6"
+  },
+  "devDependencies": {
+    "@eslint/js": "9.39.4",
+    "@types/node": "22.19.19",
+    "@types/react": "19.2.14",
+    "@types/react-dom": "19.2.3",
+    "@vitejs/plugin-react": "6.0.2",
+    "eslint": "9.39.4",
+    "eslint-plugin-jsx-a11y": "6.10.2",
+    "eslint-plugin-react": "7.37.5",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "16.4.0",
+    "typescript": "5.9.3",
+    "typescript-eslint": "8.59.3",
+    "vite": "8.0.13"
+  },
+  "type": "module"
+}

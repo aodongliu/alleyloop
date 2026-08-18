@@ -1,0 +1,35 @@
+.chainView { width: 100%; overflow-x: auto; padding: .75rem; color: #292522; background: #f7efdf; }
+.approach { position: relative; width: min(100%, 58rem); min-width: 34rem; height: clamp(18rem, 43vw, 28rem); margin: 0 auto; isolation: isolate; }
+.track { position: absolute; inset: 16% 8% 25%; border: 2px dashed #c9a989; border-radius: 1rem; background: repeating-linear-gradient(90deg, transparent 0 1.25rem, #b52f2f18 1.25rem 1.5rem); }
+.ring { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
+.personNode, .evidence { position: absolute; left: var(--route-x); top: var(--route-y); translate: -50% -50%; }
+.personNode { width: clamp(5.2rem, 17%, 8.2rem); display: flex; flex-direction: column; align-items: center; gap: .35rem; pointer-events: auto; transition: left 320ms ease, top 320ms ease, opacity 200ms ease; }
+.personName { max-width: 100%; overflow: hidden; font-size: clamp(.7rem, 1.8vw, .95rem); font-weight: 800; line-height: 1.1; text-align: center; text-wrap: balance; }
+.portrait { position: relative; display: grid; place-items: center; overflow: hidden; border: 3px solid #b52f2f; background: #292522; color: #f7efdf; font-weight: 900; letter-spacing: .04em; }
+.small { width: 2.75rem; height: 2.75rem; border-radius: .3rem; }
+.large { width: clamp(3.7rem, 11vw, 5.5rem); height: clamp(3.7rem, 11vw, 5.5rem); border-radius: .45rem; }
+.portrait::before, .portrait::after { content: ""; position: absolute; width: .35rem; height: .35rem; border-radius: 50%; background: #f7efdf; }
+.portrait::before { translate: -2rem 0; } .portrait::after { translate: 2rem 0; }
+.portrait img { width: 100%; height: 100%; object-fit: cover; }
+.target .portrait { border-color: #d27a3b; box-shadow: 0 0 0 4px #d27a3b33; }
+.current .portrait { box-shadow: 0 0 0 5px #b52f2f2e; }
+.pending { opacity: .4; }
+.removePerson { position: absolute; top: -.4rem; right: -.4rem; z-index: 3; width: 1.5rem; height: 1.5rem; border: 2px solid #f7efdf; border-radius: 50%; padding: 0; background: #292522; color: #fff; font-weight: 900; line-height: 1; }
+.removePerson:hover { background: #b52f2f; }
+.evidence { z-index: 4; max-width: 10rem; transition: left 320ms ease, top 320ms ease; }
+.ticket { display: grid; gap: .15rem; border: 1px solid #d27a3b; border-radius: .3rem; padding: .35rem .5rem; background: #fffaf0; box-shadow: 0 .3rem .7rem #29252230; font-size: .7rem; text-align: center; }
+.ticket::before { content: "FILM"; color: #b52f2f; font-size: .55rem; font-weight: 900; letter-spacing: .15em; }
+.ticketTitle { font-weight: 850; }
+.ticketPeriod { color: #705b4d; }
+.filmMarker { position: absolute; z-index: 6; width: 1.25rem; height: 1.25rem; border: 3px solid #b52f2f; border-radius: .2rem; background: #f7efdf; box-shadow: 0 0 .5rem #d27a3b; animation: roll-film 330ms ease-out both; }
+.filmMarker::after { content: ""; position: absolute; inset: .22rem; border: 1px solid #d27a3b; }
+.completed .track { border-color: #b52f2f; box-shadow: 0 0 2rem #d27a3b55; }
+.wrap { position: absolute; right: 5%; bottom: 3%; z-index: 7; padding: .55rem .8rem; border: 2px solid #b52f2f; background: #292522; color: #f7efdf; font-weight: 900; letter-spacing: .04em; box-shadow: .25rem .25rem 0 #b52f2f; }
+.completion { position: absolute; inset: 8% 0 auto; z-index: 8; color: #b52f2f; font-size: clamp(1.2rem, 4vw, 2.2rem); font-weight: 950; text-align: center; text-shadow: 0 0 1rem #d27a3b88; }
+.evidenceList { display: flex; flex-wrap: wrap; justify-content: center; gap: .3rem; }
+.clue { display: inline-flex; align-items: center; gap: .35rem; border: 1px solid #d27a3b; border-radius: .25rem; padding: .25rem .45rem; background: #fffaf0; color: #292522; }
+.clueMark { width: 1rem; height: .8rem; border: 2px solid #b52f2f; background: #f7efdf; }
+.career { display: grid; gap: .2rem; color: #705b4d; font-size: .78rem; }
+.career strong { color: #292522; }
+@keyframes roll-film { from { opacity: 0; translate: -50% -50% scale(.5) rotate(-20deg); } to { opacity: 1; translate: -50% -50% scale(1) rotate(0); } }
+@media (prefers-reduced-motion: reduce) { .personNode, .evidence { transition: none; } .filmMarker { animation: none; } }

@@ -1,0 +1,109 @@
+{
+  "schemaVersion": 1,
+  "timeZone": "America/Los_Angeles",
+  "anchorDate": "2026-08-15",
+  "maxEraGapYears": 25,
+  "slates": [
+    {
+      "date": "2026-08-15",
+      "easy": {
+        "id": "nba-2026-08-15-easy-kobe-tatum",
+        "difficulty": "easy",
+        "startId": "nba:person:977",
+        "targetId": "nba:person:1628369",
+        "expectedShortestLinks": 3,
+        "eraGapYears": 1,
+        "curationNote": "Two highly recognizable post-1996 endpoints with an approachable Lakers-to-Celtics route.",
+        "featuredOptimalPath": [
+          "nba:person:977",
+          "nba:person:1712",
+          "nba:person:202681",
+          "nba:person:1628369"
+        ]
+      },
+      "hard": {
+        "id": "nba-2026-08-15-hard-shandon-jalen",
+        "difficulty": "hard",
+        "startId": "nba:person:1000",
+        "targetId": "nba:person:1631114",
+        "expectedShortestLinks": 4,
+        "eraGapYears": 16,
+        "curationNote": "A four-link post-1996 challenge with recognizable championship-era bridges.",
+        "featuredOptimalPath": [
+          "nba:person:1000",
+          "nba:person:2548",
+          "nba:person:2207",
+          "nba:person:202330",
+          "nba:person:1631114"
+        ]
+      }
+    },
+    {
+      "date": "2026-08-16",
+      "easy": {
+        "id": "nba-2026-08-16-easy-iverson-luka",
+        "difficulty": "easy",
+        "startId": "nba:person:947",
+        "targetId": "nba:person:1629029",
+        "expectedShortestLinks": 3,
+        "eraGapYears": 8,
+        "curationNote": "Two iconic post-1996 guards connected through familiar superstar teammates.",
+        "featuredOptimalPath": [
+          "nba:person:947",
+          "nba:person:2546",
+          "nba:person:2544",
+          "nba:person:1629029"
+        ]
+      },
+      "hard": {
+        "id": "nba-2026-08-16-hard-ike-paolo",
+        "difficulty": "hard",
+        "startId": "nba:person:1134",
+        "targetId": "nba:person:1631094",
+        "expectedShortestLinks": 4,
+        "eraGapYears": 20,
+        "curationNote": "A four-link post-1996 challenge whose featured answer uses several household names.",
+        "featuredOptimalPath": [
+          "nba:person:1134",
+          "nba:person:1710",
+          "nba:person:2544",
+          "nba:person:203484",
+          "nba:person:1631094"
+        ]
+      }
+    },
+    {
+      "date": "2026-08-17",
+      "easy": {
+        "id": "nba-2026-08-17-easy-lebron-jokic",
+        "difficulty": "easy",
+        "startId": "nba:person:2544",
+        "targetId": "nba:person:203999",
+        "expectedShortestLinks": 2,
+        "eraGapYears": 0,
+        "curationNote": "A highly recognizable matchup with a compact two-link route through D.J. Augustin.",
+        "featuredOptimalPath": [
+          "nba:person:2544",
+          "nba:person:201571",
+          "nba:person:203999"
+        ]
+      },
+      "hard": {
+        "id": "nba-2026-08-17-hard-matas-samaki",
+        "difficulty": "hard",
+        "startId": "nba:person:1641824",
+        "targetId": "nba:person:955",
+        "expectedShortestLinks": 4,
+        "eraGapYears": 18,
+        "curationNote": "A four-link post-1996 challenge with an answer built from recognizable veteran bridges.",
+        "featuredOptimalPath": [
+          "nba:person:1641824",
+          "nba:person:202696",
+          "nba:person:1882",
+          "nba:person:1717",
+          "nba:person:955"
+        ]
+      }
+    }
+  ]
+}

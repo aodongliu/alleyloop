@@ -1,0 +1,497 @@
+.chainView {
+  width: 100%;
+  overflow: visible;
+  padding: 0.35rem;
+}
+
+.chainView.scrollable { overflow-x: auto; overflow-y: hidden; padding-bottom: 0.9rem; }
+
+.approach {
+  position: relative;
+  width: min(100%, 64rem);
+  height: clamp(28rem, 53vw, 36rem);
+  margin: 0 auto;
+  overflow: hidden;
+  border: 1px solid rgb(8 17 30 / 42%);
+  border-radius: 1.25rem;
+  background-color: #b87535;
+  background-image:
+    linear-gradient(90deg, rgb(5 12 22 / 9%), transparent 34% 78%, rgb(5 12 22 / 12%)),
+    linear-gradient(180deg, rgb(5 12 22 / 7%), transparent 52%, rgb(5 12 22 / 10%)),
+    var(--court-art);
+  background-position: center;
+  background-repeat: no-repeat;
+  background-size: 100% 100%;
+  box-shadow: inset 0 0 0 1px rgb(255 255 255 / 13%), 0 18px 36px rgb(49 27 10 / 18%);
+  isolation: isolate;
+  perspective: 58rem;
+}
+
+.connectionsLayer {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+.connectionShadow,
+.connectionArc {
+  fill: none;
+  vector-effect: non-scaling-stroke;
+}
+
+.connectionShadow {
+  stroke: rgb(20 33 61 / 42%);
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 6;
+}
+
+.connectionArc {
+  stroke: #ffad21;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 3.25;
+  filter: drop-shadow(0 2px 1px rgb(20 33 61 / 55%));
+}
+
+.latestConnection {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: lobTrailReveal 750ms cubic-bezier(0.2, 0.72, 0.22, 1) both;
+}
+
+.completed .connectionArc {
+  stroke: #22a66a;
+}
+
+.ringPlayers {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  pointer-events: none;
+}
+
+.playerNode,
+.edgeBadge {
+  position: absolute;
+  left: var(--route-x);
+  top: var(--route-y);
+  translate: -50% -50%;
+}
+
+.playerNode {
+  z-index: calc(20 + var(--depth-z));
+  width: clamp(6rem, 17%, 9rem);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.38rem;
+  color: #14213d;
+  font-weight: 750;
+  pointer-events: auto;
+  scale: var(--depth-scale);
+  transform-origin: center;
+  transition: left 420ms cubic-bezier(0.2, 0.72, 0.22, 1), top 420ms cubic-bezier(0.2, 0.72, 0.22, 1), scale 420ms ease, opacity 360ms ease, filter 360ms ease;
+}
+
+.playerPortraitWrap { position: relative; }
+
+.playerName {
+  display: -webkit-box;
+  max-width: 9rem;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 76%);
+  border-radius: 999px;
+  padding: 0.24rem 0.5rem 0.28rem;
+  background: #fffdf8;
+  box-shadow: 0 4px 14px rgb(24 53 39 / 12%);
+  color: inherit;
+  font-size: clamp(0.72rem, 1.7vw, 0.98rem);
+  font-weight: 800;
+  line-height: 1.12;
+  text-align: center;
+  text-wrap: balance;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.portrait {
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border: 3px solid #fca311;
+  border-radius: 50%;
+  background: #e5e5e5;
+  color: #14213d;
+  font-size: 1.15rem;
+  font-weight: 850;
+}
+
+.portrait img { width: 100%; height: 100%; object-fit: cover; }
+.small { width: 2.75rem; height: 2.75rem; }
+.large { width: clamp(4.1rem, 11vw, 5.8rem); height: clamp(4.1rem, 11vw, 5.8rem); }
+
+.current { z-index: 48; opacity: 1; filter: none; }
+.current .portrait { box-shadow: 0 0 0 6px rgb(252 163 17 / 25%), 0 14px 28px rgb(37 74 54 / 25%); }
+.passed { opacity: 1; filter: saturate(0.82) brightness(0.93); }
+.openingPasser { opacity: 1; filter: saturate(0.72) brightness(0.88); }
+.completed .passed { opacity: 1; }
+.target { color: #0a7a49; }
+.target .portrait { border-color: #0a7a49; box-shadow: 0 0 0 6px rgb(10 122 73 / 17%), 0 18px 34px rgb(27 75 51 / 23%); }
+.pending { z-index: 45; opacity: 1; filter: saturate(0.72) brightness(0.94); }
+.pending .portrait { border-style: dashed; filter: grayscale(0.2); }
+.pending .playerName { border-style: dashed; }
+
+.removePlayer {
+  position: absolute;
+  top: -0.35rem;
+  right: -0.35rem;
+  z-index: 3;
+  width: 1.6rem;
+  height: 1.6rem;
+  display: grid;
+  place-items: center;
+  border: 2px solid #fffdf8;
+  border-radius: 50%;
+  padding: 0;
+  background: #14213d;
+  box-shadow: 0 3px 9px #14213d44;
+  color: white;
+  font-size: 1rem;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.removePlayer:hover { background: #b52f2f; }
+
+.edgeBadge {
+  z-index: calc(30 + var(--depth-z));
+  max-width: 9.5rem;
+  scale: var(--depth-scale);
+  transition: left 420ms ease, top 420ms ease, scale 420ms ease;
+}
+
+.teamEvidenceRow {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 0.25rem;
+}
+
+.teamEvidenceItem { position: relative; }
+.teamEvidenceItem[open] { z-index: 20; }
+.teamEvidenceItem summary {
+  display: grid;
+  place-items: center;
+  border: 1px solid #d1d8d3;
+  border-radius: 50%;
+  padding: 0.28rem;
+  background: #fffdf8;
+  box-shadow: 0 5px 14px #24314938;
+  cursor: pointer;
+  list-style: none;
+}
+.teamEvidenceItem summary::-webkit-details-marker { display: none; }
+.teamEvidenceItem summary:hover { border-color: #fca311; translate: 0 -1px; }
+.teamEvidenceItem[open] summary { border-color: #fca311; box-shadow: 0 0 0 3px #fca3112e; }
+
+.teamLogo {
+  width: clamp(2rem, 5vw, 2.9rem);
+  height: clamp(2rem, 5vw, 2.9rem);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  border-radius: 50%;
+}
+.teamLogo img { width: 100%; height: 100%; object-fit: contain; }
+.teamLogoFallback {
+  width: 100%;
+  height: 100%;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: #14213d;
+  color: white;
+  font-size: clamp(0.48rem, 1.5vw, 0.7rem);
+  font-weight: 900;
+  letter-spacing: -0.02em;
+}
+
+.careerHistory {
+  position: relative;
+  min-width: 0;
+  display: block;
+  overflow-x: auto;
+  scrollbar-width: none;
+  margin-top: 0.25rem;
+  mask-image: linear-gradient(90deg, transparent 0, #000 0.5rem, #000 calc(100% - 1.2rem), transparent 100%);
+}
+.careerHistory::-webkit-scrollbar { display: none; }
+.careerTrack { display: flex; width: max-content; }
+.careerSet { display: flex; align-items: center; gap: 0.7rem; padding: 0 0.85rem 0 0.5rem; }
+.careerTeam { display: inline-flex; flex: 0 0 auto; align-items: center; gap: 0.28rem; color: #687486; }
+.careerTeamLogo { width: 1.65rem; height: 1.65rem; }
+.careerSeasons { font-size: 0.66rem; font-weight: 720; white-space: nowrap; }
+.careerRolling .careerTrack { animation: careerRoll 22s linear infinite; }
+.careerRolling:hover .careerTrack { animation-play-state: paused; }
+:global(.search-result:focus-visible) .careerRolling .careerTrack { animation-play-state: paused; }
+
+.teamClue { display: inline-flex; align-items: center; gap: 0.55rem; }
+.teamClueLogo { width: 3rem; height: 3rem; }
+.teamClueSeasons { color: #4c412b; font-size: 0.8rem; font-weight: 850; white-space: nowrap; }
+
+.teamEvidencePopover {
+  position: absolute;
+  bottom: calc(100% + 0.55rem);
+  left: 50%;
+  width: max-content;
+  max-width: min(16rem, 72vw);
+  display: grid;
+  gap: 0.2rem;
+  border: 1px solid #d4cec2;
+  border-radius: 0.65rem;
+  padding: 0.55rem 0.7rem;
+  background: #fffdf8;
+  box-shadow: 0 12px 30px #14213d40;
+  color: #14213d;
+  font-size: 0.68rem;
+  line-height: 1.25;
+  text-align: center;
+  translate: -50% 0;
+}
+.teamEvidencePopover span { color: #687486; }
+
+.passBall,
+.catchBall,
+.dunkBall {
+  overflow: hidden;
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 2px solid #4a210b;
+  border-radius: 50%;
+  background:
+    linear-gradient(90deg, transparent 44%, #4a210b 45% 55%, transparent 56%),
+    linear-gradient(transparent 44%, #4a210b 45% 55%, transparent 56%),
+    #f47b22;
+}
+
+.passBall {
+  position: absolute;
+  left: var(--pass-from-x);
+  top: var(--pass-from-y);
+  z-index: 70;
+  width: clamp(1.05rem, 2.8vw, 1.45rem);
+  height: clamp(1.05rem, 2.8vw, 1.45rem);
+  pointer-events: none;
+  will-change: left, top, transform;
+  animation: lobPass 900ms linear both;
+  animation-delay: var(--pass-delay);
+}
+
+.hoop {
+  position: absolute;
+  top: 32%;
+  left: 69%;
+  z-index: 58;
+  width: 7rem;
+  height: 7rem;
+  color: #0a7a49;
+  text-align: center;
+  translate: -50% -50%;
+}
+.backboard,
+.rim,
+.net { display: none; }
+.dunkBall { position: absolute; top: 0.25rem; left: 3rem; z-index: 4; }
+.dunkLabel { position: absolute; top: 4.4rem; left: 0.75rem; width: 5.5rem; border-radius: 999px; padding: 0.28rem 0.45rem; background: rgb(255 253 248 / 88%); font-size: 0.82rem; font-weight: 950; letter-spacing: 0.08em; text-transform: uppercase; }
+
+.catchBall {
+  position: absolute;
+  top: 48%;
+  left: 42%;
+  z-index: 4;
+  width: 1.15rem;
+  height: 1.15rem;
+  pointer-events: none;
+}
+
+.celebrating .dunking {
+  z-index: 75;
+  animation: playerDunk 1.45s 720ms cubic-bezier(0.2, 0.72, 0.24, 1) both;
+}
+
+.celebrating .catchBall { animation: gatherBall 1.05s 710ms ease-in-out both; }
+.celebrating .dunkBall { animation: finishDunk 700ms 1.37s ease-in both; }
+.celebrating .dunkLabel { animation: dunkLabelPop 620ms 1.58s cubic-bezier(0.17, 0.89, 0.32, 1.38) both; }
+.celebrating .hoop::after {
+  position: absolute;
+  top: -1.2rem;
+  left: 1.4rem;
+  width: 4.2rem;
+  height: 4.2rem;
+  border: 3px solid #fca311;
+  border-radius: 50%;
+  content: "";
+  animation: rimBurst 720ms 1.45s ease-out both;
+}
+
+.successCallout {
+  position: absolute;
+  top: 5%;
+  left: 54%;
+  z-index: 80;
+  border: 2px solid #0a7a49;
+  border-radius: 999px;
+  padding: 0.45rem 0.8rem;
+  background: #fffdf8;
+  box-shadow: 0 8px 0 #0a7a4930;
+  color: #0a7a49;
+  font-size: clamp(0.72rem, 2vw, 1rem);
+  font-weight: 950;
+  letter-spacing: 0.06em;
+  text-align: center;
+  text-transform: uppercase;
+  translate: -50% 0;
+  animation: celebrationPop 700ms 1.55s cubic-bezier(0.17, 0.89, 0.32, 1.38) both;
+}
+
+.successCallout::before,
+.successCallout::after {
+  position: absolute;
+  top: 50%;
+  width: 0.38rem;
+  height: 0.38rem;
+  border-radius: 50%;
+  background: #fca311;
+  box-shadow: 0 -1.2rem #e85d04, 0 1.2rem #0a7a49;
+  content: "";
+}
+.successCallout::before { left: -0.85rem; }
+.successCallout::after { right: -0.85rem; }
+
+.approach.dense { min-width: 58rem; }
+.approach.veryDense { width: 76rem; max-width: none; }
+.dense .playerName { font-size: 0.76rem; }
+.veryDense .playerName { max-width: 7.5rem; font-size: 0.7rem; }
+
+.srOnly {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+@keyframes lobPass {
+  0% {
+    left: var(--pass-from-x);
+    top: var(--pass-from-y);
+    transform: translate(-50%, -50%) scale(var(--pass-from-scale)) rotate(-25deg);
+    opacity: 0;
+  }
+  12% { opacity: 1; }
+  25% {
+    left: var(--pass-first-quarter-x);
+    top: var(--pass-first-quarter-y);
+    transform: translate(-50%, -50%) scale(0.94) rotate(60deg);
+  }
+  50% {
+    left: var(--pass-mid-x);
+    top: var(--pass-mid-y);
+    transform: translate(-50%, -50%) scale(1.08) rotate(150deg);
+    opacity: 1;
+  }
+  75% {
+    left: var(--pass-third-quarter-x);
+    top: var(--pass-third-quarter-y);
+    transform: translate(-50%, -50%) scale(1.02) rotate(240deg);
+  }
+  88% { opacity: 1; }
+  100% {
+    left: var(--pass-to-x);
+    top: var(--pass-to-y);
+    transform: translate(-50%, -50%) scale(var(--pass-to-scale)) rotate(330deg);
+    opacity: 0;
+  }
+}
+
+@keyframes lobTrailReveal {
+  from { stroke-dashoffset: 1; opacity: 0.2; }
+  to { stroke-dashoffset: 0; opacity: 1; }
+}
+
+@keyframes playerDunk {
+  0%, 18% { transform: translate(0, 0) scale(1); }
+  35% { transform: translate(-0.4rem, 0.55rem) scale(0.96); }
+  72% { transform: translate(clamp(-5rem, -8vw, -2rem), clamp(-2.25rem, -2.5vw, -1rem)) scale(1.08) rotate(-4deg); }
+  82% { transform: translate(clamp(-4.7rem, -7.5vw, -1.85rem), clamp(-2.1rem, -2.3vw, -0.9rem)) scale(1.05) rotate(4deg); }
+  100% { transform: translate(0, 0) scale(1); }
+}
+
+@keyframes gatherBall {
+  0% { transform: translate(-1.8rem, 0.2rem) scale(0.68) rotate(-30deg); opacity: 0; }
+  16%, 48% { transform: translate(0.35rem, 0) scale(0.9) rotate(70deg); opacity: 1; }
+  76% { transform: translate(2.2rem, -1.45rem) scale(0.95) rotate(210deg); opacity: 1; }
+  77%, 100% { transform: translate(2.5rem, -1.6rem) scale(0.85) rotate(240deg); opacity: 0; }
+}
+
+@keyframes finishDunk {
+  0% { transform: translate(-4.4rem, 3.3rem) scale(0.9) rotate(-30deg); opacity: 0; }
+  18% { opacity: 1; }
+  55% { transform: translate(-0.1rem, -0.25rem) scale(1) rotate(110deg); opacity: 1; }
+  72% { transform: translate(0, 0.25rem) scale(0.94) rotate(180deg); opacity: 1; }
+  100% { transform: translate(0, 2.3rem) scale(0.76) rotate(280deg); opacity: 0; }
+}
+
+@keyframes rimBurst {
+  from { transform: scale(0.25); opacity: 0.9; }
+  to { transform: scale(1.8); opacity: 0; }
+}
+
+@keyframes dunkLabelPop {
+  from { transform: translateY(-0.5rem) scale(0.6); opacity: 0; }
+  to { transform: translateY(0) scale(1); opacity: 1; }
+}
+
+@keyframes celebrationPop {
+  from { transform: translateY(0.8rem) scale(0.5) rotate(-5deg); opacity: 0; }
+  to { transform: translateY(0) scale(1) rotate(0); opacity: 1; }
+}
+@keyframes careerRoll { to { transform: translateX(-50%); } }
+
+@media (max-width: 600px) {
+  .chainView { padding: 0.15rem; }
+  .approach:not(.dense) { width: 100%; }
+  .playerNode { width: 5.1rem; gap: 0.25rem; }
+  .large { width: clamp(2.9rem, 12vw, 4rem); height: clamp(2.9rem, 12vw, 4rem); }
+  .edgeBadge { max-width: 6.5rem; }
+  .teamEvidenceItem summary { padding: 0.18rem; }
+  .teamLogo { width: clamp(1.65rem, 7vw, 2.2rem); height: clamp(1.65rem, 7vw, 2.2rem); }
+  .hoop { scale: 0.8; transform-origin: top center; }
+  .removePlayer { width: 1.35rem; height: 1.35rem; font-size: 0.82rem; }
+  .careerTeamLogo { width: 1.45rem; height: 1.45rem; }
+  .careerSeasons { font-size: 0.6rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .passBall { animation: none; left: var(--pass-to-x); top: var(--pass-to-y); transform: translate(-50%, -50%); opacity: 1; }
+  .celebrating .dunking,
+  .celebrating .catchBall,
+  .celebrating .dunkBall,
+  .celebrating .dunkLabel,
+  .celebrating .hoop::after,
+  .successCallout { animation: none; opacity: 1; }
+  .celebrating .catchBall { display: none; }
+  .playerNode,
+  .edgeBadge { transition: none; }
+  .latestConnection { animation: none; }
+  .careerRolling .careerTrack { animation: none; }
+  .careerRolling { overflow-x: auto; mask-image: none; }
+  .careerDuplicate { display: none; }
+}

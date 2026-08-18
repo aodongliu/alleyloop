@@ -1,0 +1,5 @@
+teamId,teamCity,teamName,teamAbbrev,seasonFounded,seasonActiveTill,league
+1610612737,Atlanta,Hawks,ATL,1949,9999,NBA
+1610612738,Boston,Celtics,BOS,1946,9999,NBA
+9001,Old,NonNBA,OLD,1946,1947,BAA
+50001,Foreign,Club,FOR,2020,9999,EuroLeague

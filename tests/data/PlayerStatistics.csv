@@ -1,0 +1,6 @@
+firstName,lastName,personId,gameId,gameType,playerteamId,playerteamCity,playerteamName,numMinutes,points,gameDate
+Ada,Alpha,1001,41900406,Playoffs,,Atlanta,Hawks,30,20,2020-10-11 19:30:00
+Bob,Beta,1002,41900406,Playoffs,,Atlanta,Hawks,25,10,2020-10-11 19:30:00
+Ada,Alpha,1001,42000001,Regular Season,1610612737,Atlanta,Hawks,32,18,2020-12-22 19:30:00
+Cara,Gamma,1003,42000001,Regular Season,,Boston,Celtics,15,6,2020-12-22 19:30:00
+Cara,Gamma,1003,42500001,Preseason,50001,Foreign,Club,20,8,2025-10-20 19:30:00
