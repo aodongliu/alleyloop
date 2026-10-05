@@ -8,6 +8,7 @@ export interface GameProgressSnapshot {
   version: typeof SNAPSHOT_VERSION;
   path: EntityId[];
   answerRevealed: boolean;
+  hintsUsed?: number;
 }
 
 export interface StorageLike {
@@ -44,11 +45,13 @@ export const saveProgress = (
   key: string,
   state: GameState,
   answerRevealed: boolean,
+  hintsUsed = 0,
 ): void => {
   const snapshot: GameProgressSnapshot = {
     version: SNAPSHOT_VERSION,
     path: [...state.path],
     answerRevealed,
+    ...(hintsUsed > 0 ? { hintsUsed } : {}),
   };
   try {
     storage.setItem(key, JSON.stringify(snapshot));

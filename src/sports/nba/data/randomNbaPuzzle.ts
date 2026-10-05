@@ -1,26 +1,14 @@
-import type { DailyDifficulty, DailyEntry } from "../../../core/daily.ts";
+import type { DailyEntry } from "../../../core/daily.ts";
 import type { ConnectionGraph } from "../../../core/graph.ts";
 import type { Entity } from "../../../core/model.ts";
 import { sampleRandomPair } from "../../../core/random-pair.ts";
 import { isEligibleNbaEndpoint } from "./endpointEligibility.ts";
 
-/** Unlimited endpoints should be names a typical NBA fan has a fair chance to know. */
+/** Extra-game endpoints should be names a typical NBA fan has a fair chance to know. */
 export const NBA_RANDOM_MIN_KNOWNNESS = 70;
 export const NBA_RANDOM_MAX_ERA_GAP = 25;
-
-/** Reviewed post-1996 endpoint pairs that retain Hard's required 4–6-link distance. */
-export const NBA_RANDOM_HARD_ENDPOINT_PAIRS = [
-  ["nba:person:1000", "nba:person:1631114"],
-  ["nba:person:1000", "nba:person:1631096"],
-  ["nba:person:1000", "nba:person:1642851"],
-  ["nba:person:1607", "nba:person:1641739"],
-  ["nba:person:1607", "nba:person:1630703"],
-  ["nba:person:1134", "nba:person:1631094"],
-  ["nba:person:1641824", "nba:person:955"],
-  ["nba:person:949", "nba:person:1642349"],
-  ["nba:person:1496", "nba:person:1642349"],
-  ["nba:person:1000", "nba:person:1641717"],
-] as const;
+/** The best-known shortest route must run through players this recognizable. */
+export const NBA_RANDOM_MIN_CONNECTOR_KNOWNNESS = 65;
 
 const seasonYear = (value: unknown): number | null => {
   if (typeof value !== "string") return null;
@@ -48,55 +36,36 @@ export const isRecognizableNbaPlayer = (entity: Entity): boolean =>
 
 export const randomNbaPuzzle = (
   graph: ConnectionGraph,
-  difficulty: DailyDifficulty,
   serial: number,
   rng: () => number = Math.random,
 ): DailyEntry => {
-  if (difficulty === "hard") {
-    const validPairs = NBA_RANDOM_HARD_ENDPOINT_PAIRS.flatMap(([leftId, rightId]) => {
-      const left = graph.getEntity(leftId);
-      const right = graph.getEntity(rightId);
-      if (!left || !right || !isEligibleNbaEndpoint(left) || !isEligibleNbaEndpoint(right)) return [];
-      const shortest = graph.shortestPath(leftId, rightId);
-      if (!shortest || shortest.links < 4 || shortest.links > 6) return [];
-      if (nbaCareerEraGap(left, right) > NBA_RANDOM_MAX_ERA_GAP) return [];
-      return [{ left, right, links: shortest.links }];
-    });
-    if (validPairs.length) {
-      const pairIndex = Math.min(validPairs.length - 1, Math.floor(Math.max(0, rng()) * validPairs.length));
-      const pair = validPairs[pairIndex];
-      const reverse = rng() >= 0.5;
-      const start = reverse ? pair.right : pair.left;
-      const target = reverse ? pair.left : pair.right;
-      return {
-        id: `unlimited-${difficulty}-${serial}-${start.id}-${target.id}`,
-        startId: start.id,
-        targetId: target.id,
-        difficulty,
-        expectedShortestLinks: pair.links,
-        eraGapYears: nbaCareerEraGap(start, target),
-      };
-    }
-  }
-
   const candidates = graph.entities().filter(isRecognizableNbaPlayer);
+  let route: string[] = [];
   const pair = sampleRandomPair({
     graph,
     candidates,
-    difficulty,
+    difficulty: "easy",
     rng,
     maxAttempts: 1024,
-    pairFilter: (start, target) => nbaCareerEraGap(start, target) <= NBA_RANDOM_MAX_ERA_GAP,
+    pairFilter: (start, target, shortest) => {
+      if (shortest.links > 3 || nbaCareerEraGap(start, target) > NBA_RANDOM_MAX_ERA_GAP) return false;
+      route = graph.prominentShortestPath(start.id, target.id)?.ids ?? [];
+      return route.slice(1, -1).every((id) => {
+        const score = graph.getEntity(id)?.metadata?.knownnessScore;
+        return typeof score === "number" && score >= NBA_RANDOM_MIN_CONNECTOR_KNOWNNESS;
+      });
+    },
   });
   const start = graph.getEntity(pair.startId);
   const target = graph.getEntity(pair.targetId);
   if (!start || !target) throw new Error("Random NBA matchup references an unknown player");
   return {
-    id: `unlimited-${difficulty}-${serial}-${pair.startId}-${pair.targetId}`,
+    id: `extra-${serial}-${pair.startId}-${pair.targetId}`,
     startId: pair.startId,
     targetId: pair.targetId,
-    difficulty,
+    difficulty: "easy",
     expectedShortestLinks: pair.links,
     eraGapYears: nbaCareerEraGap(start, target),
+    featuredOptimalPath: route,
   };
 };

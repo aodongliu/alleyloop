@@ -19,12 +19,13 @@ const graph = new ConnectionGraph(entities, [
   { id: "de", label: "DE", period: "2003-04", memberIds: ["d", "e"] },
 ]);
 
-test("NBA unlimited puzzles keep recognizable endpoints inside difficulty and era bounds", () => {
-  const values = [0, 0.999];
-  const puzzle = randomNbaPuzzle(graph, "hard", 7, () => values.shift() ?? 0);
+test("NBA extra games keep recognizable endpoints within three links and era bounds", () => {
+  const values = [0, 0.5];
+  const puzzle = randomNbaPuzzle(graph, 7, () => values.shift() ?? 0);
   assert.equal(puzzle.startId, "a");
-  assert.equal(puzzle.targetId, "e");
-  assert.equal(puzzle.expectedShortestLinks, 4);
+  assert.equal(puzzle.targetId, "c");
+  assert.equal(puzzle.expectedShortestLinks, 2);
+  assert.equal(puzzle.difficulty, "easy");
   assert.ok((puzzle.eraGapYears ?? Infinity) <= NBA_RANDOM_MAX_ERA_GAP);
-  assert.match(puzzle.id ?? "", /^unlimited-hard-7-/);
+  assert.match(puzzle.id ?? "", /^extra-7-/);
 });

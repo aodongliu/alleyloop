@@ -1,3 +1,4 @@
+import type { ReactNode } from "react";
 import type { ConnectionEvidence, Entity } from "../core/model.ts";
 
 /** Sport-neutral data contract consumed by any chain presentation. */
@@ -22,6 +23,11 @@ export interface ChainPresentationProps {
   /** Remove the selected player and every player after it. The start is index 0. */
   onRemoveFromIndex?: (index: number) => void;
   removePlayerLabel?: (player: string) => string;
+  /** Short tags for the two endpoints, such as "Start" and "Target". */
+  startLabel?: string;
+  targetLabel?: string;
+  /** Controls drawn on top of the presentation's own artwork. */
+  toolbar?: ReactNode;
   className?: string;
 }
 

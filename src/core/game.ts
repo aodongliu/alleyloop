@@ -17,6 +17,8 @@ export interface Submission {
 }
 
 export interface ConnectionHint {
+  /** The suggested next entity; a presentation may keep it hidden and show only the evidence. */
+  readonly nextId: EntityId;
   readonly evidence: readonly ConnectionEvidence[];
 }
 
@@ -39,6 +41,17 @@ export const submitConnection = (graph: ConnectionGraph, state: GameState, nextI
   return { accepted: true, won: nextState.won, duplicate: false, evidence, state: nextState };
 };
 
+/**
+ * Once the player has added someone who shares a group with the target, the last
+ * link is no longer a decision, so the chain completes itself. The untouched
+ * opening position is left alone: a direct start-to-target link still has to be played.
+ */
+export const finishIfLinked = (graph: ConnectionGraph, state: GameState): Submission | null => {
+  if (state.won || state.path.length < 2) return null;
+  const submission = submitConnection(graph, state, state.targetId);
+  return submission.accepted ? submission : null;
+};
+
 export const linkCount = (state: GameState): number => Math.max(0, state.path.length - 1);
 
 /** Keep the chain through `pathIndex`, removing later players and recomputing completion. */
@@ -52,15 +65,23 @@ export const rewindGame = (state: GameState, pathIndex: number): GameState => {
   };
 };
 
-/** Reveal only the shared-group clue for an unused shortest-route neighbor. */
-export const nextShortestHint = (graph: ConnectionGraph, state: GameState): ConnectionHint | null => {
+/** The best-known unused neighbor on a shortest route from the current entity, with its shared-group clue. */
+export const nextShortestHint = (
+  graph: ConnectionGraph,
+  state: GameState,
+  /** The answer the presentation would reveal; while the chain is still on it, the hint follows it. */
+  answer: readonly EntityId[] = [],
+): ConnectionHint | null => {
   if (state.won) return null;
   const current = state.path.at(-1);
   if (!current) return null;
-  const nextId = graph.shortestPath(current, state.targetId, state.path.slice(0, -1))?.ids[1];
+  const onAnswer = state.path.length < answer.length && state.path.every((id, index) => id === answer[index]);
+  const nextId = onAnswer
+    ? answer[state.path.length]
+    : graph.prominentShortestPath(current, state.targetId, state.path.slice(0, -1))?.ids[1];
   if (!nextId) return null;
   const evidence = graph.sharedEvidence(current, nextId);
-  return evidence.length ? { evidence } : null;
+  return evidence.length ? { nextId, evidence } : null;
 };
 
 /** The answer is presentation-controlled and may be revealed before completion. */

@@ -22,7 +22,7 @@ export interface DailySlate {
   id?: string;
   date?: string;
   easy: DailyEntry & { difficulty: "easy" };
-  hard: DailyEntry & { difficulty: "hard" };
+  hard?: DailyEntry & { difficulty: "hard" };
 }
 export interface DailySchedule {
   anchorDate: string;
@@ -89,7 +89,24 @@ export const selectDailyChallenge = (
   return { ...entry, date, index };
 };
 
-/** Resolve the same curated Easy/Hard slate for every visitor in a timezone day. */
+const isoDate = (day: number): string => new Date(day * 86400000).toISOString().slice(0, 10);
+
+/** Slates from earlier days, most recent first. Nothing is past before the anchor date. */
+export const pastDailySlates = (schedule: DailySchedule, now = new Date()): ResolvedDailySlate[] => {
+  const anchor = dayNumber(schedule.anchorDate);
+  const elapsed = dayNumber(localDate(now, schedule.timeZone)) - anchor;
+  if (!Number.isFinite(elapsed)) throw new Error("Daily schedule has an invalid anchor date");
+  const count = Math.max(0, Math.min(elapsed, schedule.slates.length));
+  return Array.from({ length: count }, (_, position) => {
+    const index = count - 1 - position;
+    return { ...schedule.slates[index], date: isoDate(anchor + index), index };
+  });
+};
+
+/**
+ * Resolve the same curated slate for every visitor in a timezone day.
+ * A schedule only repeats once its last slate has been played, so keep it extended ahead of today.
+ */
 export const selectDailySlate = (
   schedule: DailySchedule,
   now = new Date(),
@@ -101,12 +118,12 @@ export const selectDailySlate = (
   if (!Number.isFinite(offset)) throw new Error("Daily schedule has an invalid anchor date");
   const index = ((offset % schedule.slates.length) + schedule.slates.length) % schedule.slates.length;
   const slate = schedule.slates[index];
-  if (slate.easy.difficulty !== "easy" || slate.hard.difficulty !== "hard") {
-    throw new Error("Each daily slate must contain exactly Easy and Hard puzzles");
+  if (slate.easy.difficulty !== "easy" || (slate.hard && slate.hard.difficulty !== "hard")) {
+    throw new Error("Daily slate contains a puzzle with the wrong difficulty");
   }
   if (graph) {
     validateDifficulty(slate.easy, graph);
-    validateDifficulty(slate.hard, graph);
+    if (slate.hard) validateDifficulty(slate.hard, graph);
   }
   return { ...slate, date, index };
 };

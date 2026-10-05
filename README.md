@@ -1,6 +1,6 @@
 # AlleyLoop
 
-AlleyLoop is a multi-domain connection-game project. The first and currently only playable version asks you to connect two NBA players through teammates who appeared for the same NBA team in the same season. The root hub and `/movies/` placeholder establish where later domains will plug in without claiming that their datasets or games are ready.
+AlleyLoop is a multi-domain connection-game project. The first and currently only playable version asks you to connect two NBA players through teammates who appeared for the same NBA team in the same season. The root hub lists later categories as coming later; they have no pages yet.
 
 Any valid completed chain wins. The exact shortest distance is a comparison, and Hint/Show Answer are available whenever the player wants them.
 
@@ -23,7 +23,7 @@ npm ci
 npm run dev
 ```
 
-Open the local URL printed by Vite, normally `http://localhost:5173`. The hub is at `/`, the playable game is at `/nba/`, and `/movies/` is intentionally unimplemented.
+Open the local URL printed by Vite, normally `http://localhost:5173`. The hub is at `/`, and the playable game is at `/nba/`.
 
 Production build:
 
@@ -34,7 +34,7 @@ npm run preview
 
 ## Prototype features
 
-- daily Easy and Hard puzzles plus an Unlimited mode that generates fresh recognizable matchups; no Medium mode;
+- one curated daily NBA puzzle, with an optional way to play more approachable matchups;
 - matchup endpoints whose first recorded NBA season is 1996-97 or later, while intermediate guesses and graph paths may use players from any era;
 - player search and keyboard-friendly autocomplete;
 - stable player-ID disambiguation with era and team context;
@@ -53,7 +53,7 @@ npm run preview
 - an NBA-specific pass/dunk chain module with headshot fallbacks;
 - English and Chinese UI switching.
 
-Unlimited matchups reuse the same Easy (1–4) and Hard (4–6) distance rules, restrict endpoints to players who entered in 1996-97 or later, favor the more recognizable portion of the NBA graph, and cap non-overlapping career gaps at 25 years. Because four-link pairs are rare among recognizable modern endpoints, Unlimited Hard selects from a small reviewed endpoint catalog; shortest paths still use the complete graph. The court background is an original AlleyLoop asset in `public/assets`; the players, evidence, pass, and dunk remain live presentation elements layered above it.
+Extra matchups stay within one to three shortest links. They restrict endpoints to players who entered in 1996-97 or later, favor the more recognizable portion of the NBA graph, and cap non-overlapping career gaps at 25 years. The court backgrounds are AlleyLoop assets in `public/assets`: a 16:9 image for wide screens and a separately composed 4:5 image for phones, each with its own player route in `NbaChainView.tsx`. Hint, Show answer and Undo sit on the court's upper stands; the players, evidence, pass, and dunk remain live presentation elements layered above it.
 
 ## Rebuild the NBA graph
 
@@ -133,7 +133,7 @@ Kaggle NBA CSVs
   -> normalized entities + groups
   -> src/core/graph.ts                   domain-neutral connections/BFS
   -> src/core/game.ts                    domain-neutral chain/win rules
-  -> src/core/daily.ts                   curated daily Easy/Hard selection
+  -> src/core/daily.ts                   curated daily selection
   -> src/game/persistence.ts             reusable local progress
   -> src/app/                            interaction and composition
   -> src/sports/nba/presentation/        NBA portraits, pass, hoop, dunk
@@ -146,22 +146,29 @@ A synthetic movie-credit integration test maps people to entities and films to m
 To add another AlleyLoop domain:
 
 1. Write a build adapter that emits the same entity/group format. Soccer/NFL groups are team-seasons; movie groups are films and their eligible credited people.
-2. Supply curated Easy/Hard puzzles referencing those entity IDs.
+2. Supply curated daily puzzles referencing those entity IDs.
 3. Implement the generic chain-presentation props with domain-specific visuals: basketball lobs, soccer/football passes, or a filmstrip/projector treatment.
 4. Compose the new adapter and presentation with the existing graph, game, daily, search, persistence, and results code.
 
-The static-site structure is a lightweight root hub plus nested Vite entry pages such as `/nba/` and `/movies/`. Real nested HTML entry points are preferred over client-only routing for GitHub Pages: direct links work without a 404 rewrite, and each page downloads only its own graph and presentation bundle. Shared engine code remains in the common chunk. The movie entry is currently a placeholder; see [`MOVIES_HANDOFF.md`](./MOVIES_HANDOFF.md) before resuming that work.
+The static-site structure is a lightweight root hub plus nested Vite entry pages such as `/nba/`. Real nested HTML entry points are preferred over client-only routing for GitHub Pages: direct links work without a 404 rewrite, and each page downloads only its own graph and presentation bundle. Shared engine code remains in the common chunk. There is no movie page; see [`MOVIES_HANDOFF.md`](./MOVIES_HANDOFF.md) before starting that work.
 
 ## Daily puzzle curation
 
-`public/data/nba-puzzles.json` contains a deterministic rotation anchored to `America/Los_Angeles`. Each slate has exactly one Easy and one Hard puzzle:
+`public/data/nba-puzzles.json` is a dated schedule anchored to `America/Los_Angeles`: one slate per calendar day, counted from `anchorDate`, and no matchup appears twice. Day 1 is 2026-10-05 and it currently runs through 2028-12-31. Extend it before it runs out, because the client wraps back to the first slate once the last one has been played:
 
-- Easy shortest distance: 1–4 links;
-- Hard shortest distance: 4–6 links;
-- a four-link puzzle can belong to either, based on recognizability and practical route difficulty.
+```bash
+npm run data:schedule -- --through 2029-12-31
+```
+
+`scripts/generate_daily_schedule.py` only appends. Existing slates, including hand-curated ones, are never rewritten, so past puzzles stay stable. Generated days pair endpoints with a knownness score of at least 70, mostly two links apart with an occasional three-link day, and rest each endpoint for ten days. A two-link day needs at least three connecting players who also score 70 or more, a three-link day needs a full route of them, and the featured answer is the best-known route. The NBA page lists earlier days under "Past puzzles"; each one keeps its own saved progress.
+
+Each slate has exactly one daily puzzle:
+
+- Daily shortest distance: 1–4 links;
+- optional extra games have 1–3 shortest links and do not alter daily progress;
 - Every curated puzzle also records `eraGapYears`, computed from endpoint `metadata.activeYears` as `max(0, max(start years) - min(end years))`. The current rotation caps non-overlapping career gaps at 25 years (`maxEraGapYears`), keeping era-spanning challenges within a playable historical window while allowing overlapping careers to score zero.
 
-Every puzzle includes a curation note and one preferred optimal path. `scripts/validate_puzzles.py` verifies endpoint existence, difficulty range, exact BFS distance, every teammate link, optimality, and the recomputed era-gap value/cap. Edit this file to accept/reject candidate slates, then run `npm run data:validate`.
+Every puzzle includes a curation note and one preferred optimal path. `scripts/validate_puzzles.py` verifies endpoint existence, difficulty range, exact BFS distance, every teammate link, optimality, the recomputed era-gap value/cap, consecutive dates, and that no matchup repeats. Edit this file to accept/reject candidate slates, then run `npm run data:validate`.
 
 The NBA data adapter separately rejects a curated schedule whose start or target entered before 1996-97. This is intentionally an endpoint-selection rule only: the full historical graph remains loaded, older players remain searchable, and they may be used as intermediate connections or appear in a shortest path.
 
@@ -170,6 +177,12 @@ The NBA data adapter separately rejects a curated schedule whose start or target
 The NBA presentation derives public NBA CDN headshot and team-logo URLs from `personId` and `teamId`, with initials/abbreviation fallbacks when an image is absent or fails. Team-season evidence is collapsed only in this presentation layer: the domain-neutral graph retains every season, while the UI shows one logo per team and reveals the deduplicated seasons on click. This external image source is a replaceable prototype dependency; its availability and usage terms should be reviewed before wider promotion. Replacing either resolver does not affect gameplay.
 
 All interface copy is isolated in `src/i18n/copy.ts`. English and Chinese are enabled in this prototype; player and team proper names remain dataset-provided.
+
+## Interface design
+
+The hub and NBA game share the personal website's warm ivory / charcoal palette, Geist typography, rust accents, and rounded panels. Shared tokens and the header live in `src/ui/design.css` and `src/ui/SiteHeader.tsx`; route styles remain separate. The hub follows the website's home page: a large title, a full-width image banner for the playable game, and soft tiles for categories that are coming later. The court artwork, player portraits, team evidence, and basketball animations retain their original colors.
+
+Light mode is the default. The theme control uses the website's `aodong-theme-v2` storage key, so the preference follows users between the website and AlleyLoop on the same origin. English/Chinese selection uses `alleyloop:locale` on both pages. Fonts are served locally from `public/fonts` with their SIL Open Font License; the app does not depend on the website's CSS or font hosting.
 
 ## Tests
 

@@ -57,16 +57,6 @@ def puzzle_fixture():
                     "curationNote": "A short fixture route.",
                     "featuredOptimalPath": ["a", "b", "c"],
                 },
-                "hard": {
-                    "id": "fixture-hard",
-                    "difficulty": "hard",
-                    "startId": "a",
-                    "targetId": "e",
-                    "expectedShortestLinks": 4,
-                    "eraGapYears": 4,
-                    "curationNote": "A longer fixture route.",
-                    "featuredOptimalPath": ["a", "b", "c", "d", "e"],
-                },
             }
         ],
     }
@@ -88,21 +78,36 @@ class ValidatePuzzlesTests(unittest.TestCase):
         errors = validate_puzzles(graph_fixture(), document)
         self.assertTrue(any("link 0 is not supported" in error for error in errors), errors)
 
-    def test_validator_rejects_medium_and_invalid_hard_distance(self):
+    def test_validator_rejects_hard_and_invalid_easy_distance(self):
         document = puzzle_fixture()
-        document["slates"][0]["hard"]["difficulty"] = "medium"
-        document["slates"][0]["hard"]["expectedShortestLinks"] = 3
+        document["slates"][0]["hard"] = {"difficulty": "hard"}
         errors = validate_puzzles(graph_fixture(), document)
-        self.assertTrue(any("difficulty must be 'hard'" in error for error in errors), errors)
-        self.assertTrue(any("Hard shortest distance must be 4–6" in error for error in errors), errors)
+        self.assertTrue(any("must contain exactly date and easy" in error for error in errors), errors)
+
+        document = puzzle_fixture()
+        document["slates"][0]["easy"]["expectedShortestLinks"] = 5
+        errors = validate_puzzles(graph_fixture(), document)
+        self.assertTrue(any("Easy shortest distance must be 1–4" in error for error in errors), errors)
 
     def test_validator_rejects_unknown_endpoints_and_duplicate_ids(self):
         document = puzzle_fixture()
         document["slates"][0]["easy"]["targetId"] = "missing"
-        document["slates"][0]["hard"]["id"] = document["slates"][0]["easy"]["id"]
+        duplicate = puzzle_fixture()["slates"][0]
+        duplicate["date"] = "2026-08-16"
+        document["slates"].append(duplicate)
         errors = validate_puzzles(graph_fixture(), document)
         self.assertTrue(any("targetId must reference a graph entity" in error for error in errors), errors)
         self.assertTrue(any("duplicate puzzle id" in error for error in errors), errors)
+
+    def test_validator_rejects_repeated_matchups_and_date_gaps(self):
+        document = puzzle_fixture()
+        repeat = puzzle_fixture()["slates"][0]
+        repeat["date"] = "2026-08-18"
+        repeat["easy"].update({"id": "fixture-repeat", "startId": "c", "targetId": "a", "featuredOptimalPath": ["c", "b", "a"]})
+        document["slates"].append(repeat)
+        errors = validate_puzzles(graph_fixture(), document)
+        self.assertTrue(any("repeats an earlier matchup" in error for error in errors), errors)
+        self.assertTrue(any("must be 2026-08-16 to follow anchorDate without gaps" in error for error in errors), errors)
 
     def test_validator_recomputes_era_gap_from_endpoint_metadata(self):
         document = puzzle_fixture()

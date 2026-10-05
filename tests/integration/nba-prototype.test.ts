@@ -6,7 +6,7 @@ import { ConnectionGraph } from "../../src/core/graph.ts";
 import { createGame, linkCount, revealShortestPath, submitConnection } from "../../src/core/game.ts";
 import type { NormalizedConnectionDataset } from "../../src/data/ConnectionDataAdapter.ts";
 import { isEligibleNbaEndpoint } from "../../src/sports/nba/data/endpointEligibility.ts";
-import { NBA_RANDOM_HARD_ENDPOINT_PAIRS } from "../../src/sports/nba/data/randomNbaPuzzle.ts";
+import { randomNbaPuzzle } from "../../src/sports/nba/data/randomNbaPuzzle.ts";
 import { collapseNbaTeamEvidence, compactSeasonRanges } from "../../src/sports/nba/presentation/teamEvidence.ts";
 
 const readJson = <T>(relativePath: string): T => JSON.parse(
@@ -23,36 +23,16 @@ test("generated NBA graph is connected enough for the curated prototype", () => 
   assert.ok(graph.groups().length > 1_600);
   assert.equal(schedule.maxEraGapYears, 25);
   for (const slate of schedule.slates) {
-    for (const puzzle of [slate.easy, slate.hard]) {
+    for (const puzzle of [slate.easy]) {
       assert.equal(typeof puzzle.eraGapYears, "number");
       assert.ok(puzzle.eraGapYears! <= schedule.maxEraGapYears!);
       assert.equal(isEligibleNbaEndpoint(graph.getEntity(puzzle.startId)!), true);
       assert.equal(isEligibleNbaEndpoint(graph.getEntity(puzzle.targetId)!), true);
     }
   }
-  const slate = selectDailySlate(schedule, new Date("2026-08-15T16:00:00Z"), graph);
+  const slate = selectDailySlate(schedule, new Date("2026-10-05T16:00:00Z"), graph);
   assert.equal(slate.easy.difficulty, "easy");
-  assert.equal(slate.hard.difficulty, "hard");
-});
-
-test("a curated post-1996 Hard matchup uses supported real team-season bridges", () => {
-  const puzzle = selectDailySlate(schedule, new Date("2026-08-16T16:00:00Z"), graph).hard;
-  assert.deepEqual(puzzle.featuredOptimalPath, [
-    "nba:person:1134",
-    "nba:person:1710",
-    "nba:person:2544",
-    "nba:person:203484",
-    "nba:person:1631094",
-  ]);
-  const teamLabels = puzzle.featuredOptimalPath!.slice(1).map((entityId, index) => (
-    [...new Set(graph.sharedEvidence(puzzle.featuredOptimalPath![index], entityId).map((evidence) => evidence.label))]
-  ));
-  assert.deepEqual(teamLabels, [
-    ["Vancouver Grizzlies"],
-    ["Miami Heat"],
-    ["Los Angeles Lakers"],
-    ["Orlando Magic"],
-  ]);
+  assert.equal(slate.hard, undefined);
 });
 
 test("the endpoint-only cutoff leaves historical players in search and graph traversal", () => {
@@ -61,18 +41,19 @@ test("the endpoint-only cutoff leaves historical players in search and graph tra
   assert.ok(graph.neighbors("nba:person:893").length > 0);
 });
 
-test("Unlimited Hard endpoint catalog stays post-1996 and 4–6 links apart", () => {
-  for (const [startId, targetId] of NBA_RANDOM_HARD_ENDPOINT_PAIRS) {
-    assert.equal(isEligibleNbaEndpoint(graph.getEntity(startId)!), true);
-    assert.equal(isEligibleNbaEndpoint(graph.getEntity(targetId)!), true);
-    const shortest = graph.shortestPath(startId, targetId);
-    assert.ok(shortest);
-    assert.ok(shortest.links >= 4 && shortest.links <= 6);
-  }
+test("extra NBA games use eligible endpoints and at most three links", () => {
+  let seed = 17;
+  const puzzle = randomNbaPuzzle(graph, 1, () => {
+    seed = (seed * 1664525 + 1013904223) >>> 0;
+    return seed / 2 ** 32;
+  });
+  assert.equal(isEligibleNbaEndpoint(graph.getEntity(puzzle.startId)!), true);
+  assert.equal(isEligibleNbaEndpoint(graph.getEntity(puzzle.targetId)!), true);
+  assert.ok(puzzle.expectedShortestLinks! >= 1 && puzzle.expectedShortestLinks! <= 3);
 });
 
 test("a real curated path validates link-by-link, wins, and reveals an optimal path", () => {
-  const puzzle = selectDailySlate(schedule, new Date("2026-08-15T16:00:00Z"), graph).easy;
+  const puzzle = selectDailySlate(schedule, new Date("2026-10-05T16:00:00Z"), graph).easy;
   assert.ok(puzzle.featuredOptimalPath);
   let state = createGame(puzzle.startId, puzzle.targetId);
   const direct = submitConnection(graph, state, puzzle.targetId);

@@ -16,6 +16,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "data:build": "python3 scripts/build_nba_graph.py --input ../KaggleDataset08152026 --output public/data/nba-graph.json --report data-reports/nba-preprocessing-report.json",
+    "data:schedule": "python3 scripts/generate_daily_schedule.py --graph public/data/nba-graph.json --puzzles public/data/nba-puzzles.json",
     "data:validate": "python3 scripts/validate_puzzles.py --graph public/data/nba-graph.json --puzzles public/data/nba-puzzles.json"
   },
   "dependencies": {

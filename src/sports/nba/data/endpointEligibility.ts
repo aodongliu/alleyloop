@@ -24,7 +24,7 @@ export const assertEligibleNbaScheduleEndpoints = (
 ): void => {
   const entityById = new Map(dataset.entities.map((entity) => [entity.id, entity]));
   for (const slate of schedule.slates) {
-    for (const puzzle of [slate.easy, slate.hard]) {
+    for (const puzzle of [slate.easy, ...(slate.hard ? [slate.hard] : [])]) {
       for (const endpointId of [puzzle.startId, puzzle.targetId]) {
         const entity = entityById.get(endpointId);
         if (!entity || !isEligibleNbaEndpoint(entity)) {

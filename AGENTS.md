@@ -9,7 +9,7 @@ This file is operational context for future agents. Product behavior, architectu
 - This is the standalone public repository `aodongliu/alleyloop`.
 - The existing `aodongliu/aodongliu.github.io` repository is separate. Do not modify it unless the user explicitly asks.
 - Never commit raw Kaggle or IMDb source files. The normalized NBA graph under `public/data` is intentionally public and is the only dataset needed at runtime.
-- `/movies/` is a non-playable placeholder. Do not publish IMDb-derived data without resolving the licensing gate in `MOVIES_HANDOFF.md`.
+- There is no `/movies/` page; Movies, Soccer and NFL appear on the hub only as "Coming later". Do not publish IMDb-derived data without resolving the licensing gate in `MOVIES_HANDOFF.md`.
 - Preserve unrelated user changes in a dirty worktree.
 
 ## GitHub and Pages
@@ -63,7 +63,7 @@ Then verify both the hub and `/nba/` from the public URL. The raw Kaggle directo
 
 - `public/data/nba-graph.json`: normalized entities and team-season groups, intentionally shipped to each NBA client.
 - `public/data/nba-puzzles.json`: curated daily schedule.
-- `public/assets/nba-court-perspective.webp`: checked-in original court artwork.
+- `public/assets/nba-court-desktop.webp` (16:9) and `public/assets/nba-court-phone.webp` (4:5): checked-in court artwork; the phone file is used at widths up to 600px.
 - Player headshots and team logos currently resolve from public NBA CDN URLs with graceful fallbacks. The interface includes an unofficial-fan-project disclaimer; review the external image source's availability and usage terms before wider promotion.
 
 ## Startup checklist for the next agent

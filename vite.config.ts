@@ -10,7 +10,6 @@ export default defineConfig({
       input: {
         hub: fileURLToPath(new URL("./index.html", import.meta.url)),
         nba: fileURLToPath(new URL("./nba/index.html", import.meta.url)),
-        movies: fileURLToPath(new URL("./movies/index.html", import.meta.url)),
       },
     },
   },

@@ -106,9 +106,10 @@ test("a movie adapter loads through the same domain-neutral boundary as the NBA 
   assert.equal(new ConnectionGraph(loaded.dataset.entities, loaded.dataset.groups).groups().length, 4);
 });
 
-test("a longer movie-credit chain still wins and the hint exposes only a film", () => {
+test("a longer movie-credit chain still wins and the hint carries the shared film", () => {
   let state = createGame("person:1", "person:6");
   assert.deepEqual(nextShortestHint(graph, state), {
+    nextId: "person:3",
     evidence: [{
       groupId: "movie:1",
       label: "First Feature",
@@ -128,7 +129,7 @@ test("a longer movie-credit chain still wins and the hint exposes only a film", 
 
 test("daily movie puzzles and saved progress reuse the shared contracts", () => {
   const slate = selectDailySlate(movieSchedule, new Date("2026-08-16T18:00:00Z"), graph);
-  assert.equal(slate.hard.id, "movie-hard");
+  assert.equal(slate.hard?.id, "movie-hard");
 
   const storage = new MemoryStorage();
   const movieKey = progressStorageKey("movies", "fixture");

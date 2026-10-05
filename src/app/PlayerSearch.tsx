@@ -108,7 +108,7 @@ export function PlayerSearch({
           {selected ? <Portrait entity={selected} size="small" /> : null}
         </div>
         <button className="lob-button" type="submit" disabled={!selected || disabled}>
-          <span aria-hidden="true">↗</span>
+          <span aria-hidden="true">→</span>
           {copy.submit}
         </button>
         {open ? (

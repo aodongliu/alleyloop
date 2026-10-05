@@ -1,6 +1,7 @@
 import { StrictMode, useEffect, useState } from "react";
 import { createRoot } from "react-dom/client";
 import type { Locale } from "./i18n/copy.ts";
+import { AuthorLink, SiteHeader } from "./ui/SiteHeader.tsx";
 import "./hub.css";
 
 const baseUrl = import.meta.env.BASE_URL;
@@ -11,36 +12,24 @@ const initialLocale = (): Locale => {
 
 const HUB_COPY = {
   en: {
-    eyebrow: "One engine · many worlds",
-    title: "Find the link.",
-    body: "Choose a court, a screen, or a field. Build any valid chain and compare it with the shortest route.",
-    choose: "Choose today’s AlleyLoop",
-    ready: "Play now",
+    title: "Alley Loop",
+    subtitle: "A game about the connections you remember, and the ones you discover along the way.",
+    body: "Six degrees of separation says any two people on Earth can be connected by a chain of six social links or fewer. Can you connect the links in the following categories?",
+    categories: "Categories",
+    play: "Play",
     coming: "Coming later",
-    planned: "Planned",
-    nbaTitle: "NBA",
-    nbaBody: "Connect players through same-team, same-season rosters. Finish at the rim.",
-    movieTitle: "Movies",
-    movieBody: "Connect actors, directors, and writers through shared principal film credits.",
-    soccerBody: "Pass through club teammates and finish in the goal.",
-    nflBody: "Move the chain through NFL team-season connections.",
-    local: "NBA is playable now. Movies, soccer, and NFL remain architecture-ready placeholders.",
+    nba: "NBA",
+    upcoming: ["Movies", "Soccer", "NFL"],
   },
   zh: {
-    eyebrow: "同一引擎 · 多个世界",
-    title: "找出连接。",
-    body: "选择球场、银幕或绿茵场。完成任意有效路线，再与最短路线比较。",
-    choose: "选择今天的 AlleyLoop",
-    ready: "开始游戏",
+    title: "Alley Loop",
+    subtitle: "从你记得的联系出发，发现途中意想不到的联系。",
+    body: "六度分隔理论认为，地球上任意两个人之间，最多通过六层人际关系就能联系起来。你能在下面这些类别里把他们连起来吗？",
+    categories: "类别",
+    play: "开始",
     coming: "稍后推出",
-    planned: "计划中",
-    nbaTitle: "NBA",
-    nbaBody: "通过同队同赛季阵容连接球员，最后在篮筐前完成空接。",
-    movieTitle: "电影",
-    movieBody: "通过共同的主要电影演职员表连接演员、导演与编剧。",
-    soccerBody: "通过俱乐部队友传递，最后射门得分。",
-    nflBody: "通过 NFL 同队同赛季关系推进连接。",
-    local: "NBA 现已可玩。电影、足球和 NFL 目前保留为可扩展的占位页面。",
+    nba: "NBA",
+    upcoming: ["电影", "足球", "NFL"],
   },
 } as const;
 
@@ -53,56 +42,38 @@ function HubApp() {
   }, [locale]);
 
   return (
-    <main className="hub-shell">
-      <header className="hub-header">
-        <a className="hub-wordmark" href={baseUrl}><span aria-hidden="true">∞</span> AlleyLoop</a>
-        <div className="hub-language" aria-label="Language / 语言">
-          <button type="button" className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button>
-          <button type="button" className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>中文</button>
-        </div>
-      </header>
+    <div className="hub-shell">
+      <SiteHeader locale={locale} onLocaleChange={setLocale} />
+      <main id="main-content">
+        <section className="hub-hero" aria-labelledby="hub-title">
+          <h1 id="hub-title">{copy.title}</h1>
+          <p className="hub-subtitle">{copy.subtitle}</p>
+          <p>{copy.body}</p>
+        </section>
 
-      <section className="hub-hero">
-        <p>{copy.eyebrow}</p>
-        <h1>{copy.title}</h1>
-        <div className="hub-route" aria-hidden="true"><i /><i /><i /><i /></div>
-        <strong>{copy.body}</strong>
-      </section>
-
-      <section className="hub-games" aria-labelledby="hub-games-title">
-        <h2 id="hub-games-title">{copy.choose}</h2>
-        <div className="hub-grid">
-          <a className="game-tile nba-tile" href={`${baseUrl}nba/`}>
-            <span className="tile-status">{copy.ready}</span>
-            <div className="tile-mark basketball-mark" aria-hidden="true" />
-            <h3>{copy.nbaTitle}</h3>
-            <p>{copy.nbaBody}</p>
-            <b aria-hidden="true">↗</b>
+        <section className="hub-games" aria-label={copy.categories}>
+          <a className="hub-banner" href={`${baseUrl}nba/`}>
+            <img src={`${baseUrl}assets/nba-court-desktop.webp`} alt="" width="2048" height="1152" />
+            <div className="hub-banner-copy">
+              <h2>{copy.nba}</h2>
+              <span className="hub-play-button">{copy.play}<span aria-hidden="true">→</span></span>
+            </div>
           </a>
-          <a className="game-tile movie-tile" href={`${baseUrl}movies/`}>
-            <span className="tile-status">{copy.coming}</span>
-            <div className="tile-mark film-mark" aria-hidden="true"><i /><i /><i /></div>
-            <h3>{copy.movieTitle}</h3>
-            <p>{copy.movieBody}</p>
-            <b aria-hidden="true">↗</b>
-          </a>
-          <article className="game-tile future-tile">
-            <span className="tile-status">{copy.planned}</span>
-            <div className="tile-mark soccer-mark" aria-hidden="true" />
-            <h3>Soccer</h3>
-            <p>{copy.soccerBody}</p>
-          </article>
-          <article className="game-tile future-tile">
-            <span className="tile-status">{copy.planned}</span>
-            <div className="tile-mark football-mark" aria-hidden="true" />
-            <h3>NFL</h3>
-            <p>{copy.nflBody}</p>
-          </article>
-        </div>
-      </section>
 
-      <footer className="hub-footer">{copy.local}</footer>
-    </main>
+          <div className="hub-planned-grid">
+            {copy.upcoming.map((name) => (
+              <article className="hub-planned-card" key={name}>
+                <h2>{name}</h2>
+                <span className="hub-coming">{copy.coming}</span>
+              </article>
+            ))}
+          </div>
+        </section>
+      </main>
+      <footer className="hub-footer">
+        <AuthorLink locale={locale} />
+      </footer>
+    </div>
   );
 }
 

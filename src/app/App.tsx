@@ -1,17 +1,20 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import {
+  pastDailySlates,
   selectDailySlate,
-  type DailyDifficulty,
   type DailyEntry,
   type DailySchedule,
+  type ResolvedDailySlate,
 } from "../core/daily.ts";
 import { ConnectionGraph } from "../core/graph.ts";
 import {
   createGame,
   linkCount,
   nextShortestHint,
+  type ConnectionHint,
   revealShortestPath,
   rewindGame,
+  finishIfLinked,
   submitConnection,
   type GameState,
 } from "../core/game.ts";
@@ -33,11 +36,11 @@ import { NbaPlayerCareer } from "../sports/nba/presentation/NbaPlayerCareer.tsx"
 import { NbaPlayerPortrait } from "../sports/nba/presentation/NbaPlayerPortrait.tsx";
 import { NbaTeamClue } from "../sports/nba/presentation/NbaTeamClue.tsx";
 import { NbaTeamEvidence } from "../sports/nba/presentation/NbaTeamEvidence.tsx";
-import { shortSeasonLabel } from "../sports/nba/presentation/teamEvidence.ts";
+import { dailyStats, loadDailySolves, recordDailySolve, type DailySolve, type DailySolves } from "../game/stats.ts";
 import { PlayerSearch } from "./PlayerSearch.tsx";
+import { AuthorLink, SiteHeader } from "../ui/SiteHeader.tsx";
 
 const nbaAdapter = new NbaDataAdapter();
-const appBaseUrl = import.meta.env.BASE_URL;
 const memoryOnlyStorage: StorageLike = {
   getItem: () => null,
   setItem: () => undefined,
@@ -65,7 +68,11 @@ interface Feedback {
   evidence?: readonly ConnectionEvidence[];
 }
 
-type GameMode = "daily" | "unlimited";
+type GameMode = "daily" | "extra";
+type AppMode = GameMode | "archive";
+const ARCHIVE_PAGE_SIZE = 10;
+/** Lets the lob to the newly added player land before the automatic final pass. */
+const AUTO_FINISH_DELAY_MS = 1250;
 
 const initialLocale = (): Locale => {
   try {
@@ -84,21 +91,78 @@ const entityOrThrow = (graph: ConnectionGraph, id: string): Entity => {
 const puzzleId = (puzzle: DailyEntry, date: string): string =>
   puzzle.id ?? `${date}-${puzzle.difficulty}-${puzzle.startId}-${puzzle.targetId}`;
 
-function EndpointCard({ entity, label, target = false }: { entity: Entity; label: string; target?: boolean }) {
-  const activeFrom = typeof entity.metadata?.activeFrom === "string" ? entity.metadata.activeFrom : null;
-  const activeTo = typeof entity.metadata?.activeTo === "string" ? entity.metadata.activeTo : null;
-  const activeRange = activeFrom && activeTo
-    ? activeFrom === activeTo
-      ? shortSeasonLabel(activeFrom)
-      : `${shortSeasonLabel(activeFrom)}–${shortSeasonLabel(activeTo)}`
-    : "";
+const formatPuzzleDate = (date: string, locale: Locale): string =>
+  new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+    timeZone: "UTC",
+  }).format(new Date(`${date}T12:00:00Z`));
+
+function PastPuzzles({ slates, graph, namespace, locale, activeDate, onSelect }: {
+  slates: readonly ResolvedDailySlate[];
+  graph: ConnectionGraph;
+  namespace: string;
+  locale: Locale;
+  activeDate?: string;
+  onSelect: (slate: ResolvedDailySlate) => void;
+}) {
+  const copy = COPY[locale];
+  const storage = useMemo(() => browserStorage(), []);
+  const [visible, setVisible] = useState(ARCHIVE_PAGE_SIZE);
+  const status = (slate: ResolvedDailySlate): { label: string; solved: boolean } => {
+    const snapshot = loadProgress(storage, progressStorageKey(namespace, puzzleId(slate.easy, slate.date)));
+    if (snapshot && snapshot.path.length > 1 && snapshot.path.at(-1) === slate.easy.targetId) {
+      return { label: copy.archiveSolved(snapshot.path.length - 1), solved: true };
+    }
+    if (snapshot?.answerRevealed) return { label: copy.archiveRevealed, solved: false };
+    if (snapshot && snapshot.path.length > 1) return { label: copy.archiveInProgress, solved: false };
+    return { label: copy.archiveNotPlayed, solved: false };
+  };
   return (
-    <article className={target ? "endpoint-card endpoint-target" : "endpoint-card"}>
-      <span className="endpoint-label">{label}</span>
-      <NbaPlayerPortrait entity={entity} size="large" />
-      <strong>{entity.label}</strong>
-      <small>{activeRange}</small>
-    </article>
+    <section id="past-puzzles" className="archive-panel" aria-label={copy.pastPuzzles}>
+      <ol>
+        {slates.slice(0, visible).map((slate) => {
+          const progress = status(slate);
+          return (
+            <li key={slate.date}>
+              <button type="button" aria-current={slate.date === activeDate ? "true" : undefined} onClick={() => onSelect(slate)}>
+                <span className="archive-number">#{slate.index + 1}</span>
+                <time dateTime={slate.date}>{formatPuzzleDate(slate.date, locale)}</time>
+                <strong>{entityOrThrow(graph, slate.easy.startId).label}<span aria-hidden="true"> → </span>{entityOrThrow(graph, slate.easy.targetId).label}</strong>
+                <span className={progress.solved ? "archive-status solved" : "archive-status"}>{progress.label}</span>
+              </button>
+            </li>
+          );
+        })}
+      </ol>
+      {visible < slates.length ? (
+        <button className="archive-more" type="button" onClick={() => setVisible((count) => count + ARCHIVE_PAGE_SIZE)}>{copy.showOlder}</button>
+      ) : null}
+    </section>
+  );
+}
+
+function HeaderPopover({ title, children }: { title: string; children: ReactNode }) {
+  const details = useRef<HTMLDetailsElement>(null);
+  useEffect(() => {
+    const close = (event: Event) => {
+      const element = details.current;
+      if (!element?.open) return;
+      if (event instanceof KeyboardEvent ? event.key === "Escape" : !element.contains(event.target as Node)) element.open = false;
+    };
+    document.addEventListener("pointerdown", close);
+    document.addEventListener("keydown", close);
+    return () => {
+      document.removeEventListener("pointerdown", close);
+      document.removeEventListener("keydown", close);
+    };
+  }, []);
+  return (
+    <details className="rules-popover" ref={details}>
+      <summary>{title}</summary>
+      {children}
+    </details>
   );
 }
 
@@ -126,6 +190,9 @@ function GameBoard({
   namespace,
   mode,
   onNewMatchup,
+  onPlayAnother,
+  onSolved,
+  streak,
 }: {
   graph: ConnectionGraph;
   puzzle: DailyEntry;
@@ -134,6 +201,11 @@ function GameBoard({
   namespace: string;
   mode: GameMode;
   onNewMatchup?: () => void;
+  onPlayAnother?: () => void;
+  /** Called whenever the board is in a completed state, including when a finished game is reopened. */
+  onSolved?: (solve: DailySolve) => void;
+  /** Current daily streak, shown on the win panel when the puzzle counts toward it. */
+  streak?: number;
 }) {
   const copy = COPY[locale];
   const start = entityOrThrow(graph, puzzle.startId);
@@ -142,19 +214,30 @@ function GameBoard({
   const storage = useMemo(() => browserStorage(), []);
   const restored = useMemo(() => {
     const snapshot = loadProgress(storage, storageKey);
+    const state = restoreGame(graph, puzzle.startId, puzzle.targetId, snapshot);
     return {
-      state: restoreGame(graph, puzzle.startId, puzzle.targetId, snapshot),
+      state: finishIfLinked(graph, state)?.state ?? state,
       answerRevealed: Boolean(snapshot?.answerRevealed),
+      hintsUsed: snapshot?.hintsUsed ?? 0,
     };
   }, [graph, puzzle.startId, puzzle.targetId, storage, storageKey]);
   const [game, setGame] = useState<GameState>(restored.state);
   const [answerRevealed, setAnswerRevealed] = useState(restored.answerRevealed);
-  const [hintEvidence, setHintEvidence] = useState<readonly ConnectionEvidence[] | null>(null);
+  const [hint, setHint] = useState<ConnectionHint | null>(null);
+  const [hintNamed, setHintNamed] = useState(false);
+  const [hintsUsed, setHintsUsed] = useState(restored.hintsUsed);
   const [feedback, setFeedback] = useState<Feedback | null>(null);
   const [latestLinkIndex, setLatestLinkIndex] = useState<number | undefined>();
+  const [finishing, setFinishing] = useState(false);
+  const finishTimer = useRef<number | undefined>(undefined);
+  const cancelFinish = () => {
+    window.clearTimeout(finishTimer.current);
+    setFinishing(false);
+  };
+  useEffect(() => () => window.clearTimeout(finishTimer.current), []);
 
   const shortest = useMemo(
-    () => graph.shortestPath(puzzle.startId, puzzle.targetId),
+    () => graph.prominentShortestPath(puzzle.startId, puzzle.targetId),
     [graph, puzzle.startId, puzzle.targetId],
   );
   const chain = useMemo(
@@ -188,9 +271,17 @@ function GameBoard({
     to: entity,
     evidence: graph.sharedEvidence(optimalChain[index].id, entity.id),
   })), [graph, optimalChain]);
+  // The answer takes over the court; hiding it puts the player's own chain back.
+  const showingAnswer = answerRevealed && optimalChain.length > 0;
   useEffect(() => {
-    saveProgress(storage, storageKey, game, answerRevealed);
-  }, [answerRevealed, game, storage, storageKey]);
+    saveProgress(storage, storageKey, game, answerRevealed, hintsUsed);
+  }, [answerRevealed, game, hintsUsed, storage, storageKey]);
+  const shortestLinks = shortest?.links;
+  useEffect(() => {
+    if (game.won && shortestLinks !== undefined) onSolved?.({ links: linkCount(game), shortest: shortestLinks, hints: hintsUsed });
+    // Report the result once, when the chain completes; later hint presses cannot change it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [game.won, onSolved]);
 
   const addPlayer = (entity: Entity): boolean => {
     const previous = chain.at(-1) ?? start;
@@ -204,13 +295,23 @@ function GameBoard({
       return false;
     }
     setGame(submission.state);
-    setHintEvidence(null);
+    setHint(null);
     setLatestLinkIndex(submission.state.path.length - 2);
     setFeedback({
       kind: "success",
       message: copy.connected(previous.label, entity.label),
       evidence: submission.evidence,
     });
+    const finish = finishIfLinked(graph, submission.state);
+    if (finish) {
+      setFinishing(true);
+      finishTimer.current = window.setTimeout(() => {
+        setGame(finish.state);
+        setLatestLinkIndex(finish.state.path.length - 2);
+        setFeedback({ kind: "success", message: copy.autoFinished(entity.label, target.label), evidence: finish.evidence });
+        setFinishing(false);
+      }, AUTO_FINISH_DELAY_MS);
+    }
     return true;
   };
 
@@ -220,17 +321,30 @@ function GameBoard({
   };
 
   const showHint = () => {
-    const hint = nextShortestHint(graph, game);
-    setHintEvidence(hint?.evidence ?? null);
-    if (hint) setFeedback(null);
-    else if (!game.won) setFeedback({ kind: "error", message: copy.noHint });
+    // First press shows the shared team; a second press on the same step names the player.
+    if (hint) {
+      if (hintNamed) return;
+      setHintNamed(true);
+      setHintsUsed((count) => count + 1);
+      return;
+    }
+    const nextHint = nextShortestHint(graph, game, optimalIds);
+    setHint(nextHint);
+    setHintNamed(false);
+    if (nextHint) {
+      setHintsUsed((count) => count + 1);
+      setFeedback(null);
+    } else if (!game.won) setFeedback({ kind: "error", message: copy.noHint });
   };
 
   const rewindTo = (pathIndex: number) => {
-    const nextState = rewindGame(game, pathIndex);
+    cancelFinish();
+    let nextState = rewindGame(game, pathIndex);
+    // A player who links to the target always finishes the chain, so they leave together.
+    while (finishIfLinked(graph, nextState)) nextState = rewindGame(nextState, nextState.path.length - 2);
     if (nextState === game) return;
     setGame(nextState);
-    setHintEvidence(null);
+    setHint(null);
     setFeedback(null);
     setLatestLinkIndex(undefined);
   };
@@ -240,63 +354,63 @@ function GameBoard({
   };
 
   const reset = () => {
+    cancelFinish();
     clearProgress(storage, storageKey);
     setGame(createGame(puzzle.startId, puzzle.targetId));
     setAnswerRevealed(false);
-    setHintEvidence(null);
+    setHintsUsed(0);
+    setHint(null);
     setFeedback(null);
     setLatestLinkIndex(undefined);
   };
 
   return (
-    <section className="game-card" aria-label={`${puzzle.difficulty} ${namespace} puzzle`}>
-      <div className="matchup">
-        <EndpointCard entity={start} label={copy.start} />
-        <div className="matchup-flight" aria-hidden="true">
-          <span className="flight-ball" />
-          <span className="flight-copy">CONNECT</span>
-        </div>
-        <EndpointCard entity={target} label={copy.target} target />
-      </div>
-
-      <div className="game-tools" aria-label={copy.assists}>
-        {mode === "unlimited" && onNewMatchup ? (
-          <button className="tool-button tool-new-matchup" type="button" onClick={onNewMatchup}>{copy.newMatchup}</button>
-        ) : null}
-        <button className="tool-button" type="button" onClick={showHint} disabled={game.won}>{copy.hint}</button>
-        <button className="tool-button tool-primary" type="button" onClick={toggleAnswer}>
-          {answerRevealed ? copy.hideAnswer : copy.showAnswer}
-        </button>
-        {game.path.length > 1 ? (
-          <button className="tool-button" type="button" onClick={() => rewindTo(game.path.length - 2)}>{copy.undo}</button>
-        ) : null}
-      </div>
-
-      {hintEvidence && !game.won ? (
-        <aside className="hint-card" aria-live="polite">
-          <div><span>{copy.hintTitle}</span><strong>{copy.hintTeam}</strong></div>
-          <NbaTeamClue evidence={hintEvidence} />
-        </aside>
-      ) : null}
-
-      <div className="chain-stage">
+    <section className="game-card" aria-label={`${mode === "daily" ? copy.today : copy.extraGame} ${namespace} puzzle`}>
+      <div className={showingAnswer ? "chain-stage showing-answer" : "chain-stage"} aria-live="polite">
         <div className="stage-marking" aria-hidden="true" />
+        {showingAnswer ? <p className="stage-caption">{copy.optimalTitle}</p> : null}
         <NbaChainView
-          chain={chain}
-          links={links}
+          chain={showingAnswer ? optimalChain : chain}
+          links={showingAnswer ? optimalLinks : links}
           target={target}
-          targetReached={game.won}
-          latestAcceptedLinkIndex={latestLinkIndex}
-          celebrateCompletion={game.won}
+          targetReached={showingAnswer || game.won}
+          latestAcceptedLinkIndex={showingAnswer ? undefined : latestLinkIndex}
+          celebrateCompletion={game.won && !showingAnswer}
           connectionAnimationLabel={copy.connectionAnimation}
           completionLabel={copy.celebration}
           finishLabel={copy.finish}
-          onRemoveFromIndex={removeFromIndex}
+          onRemoveFromIndex={showingAnswer ? undefined : removeFromIndex}
           removePlayerLabel={copy.removePlayer}
+          startLabel={copy.start}
+          targetLabel={copy.target}
+          toolbar={(
+            <>
+              <div className="court-tools" role="group" aria-label={copy.assists}>
+                <button className="tool-button" type="button" onClick={showHint} disabled={game.won || showingAnswer || finishing || (hint !== null && hintNamed)}>{hint ? copy.revealPlayer : copy.hint}</button>
+                <button className="tool-button tool-primary" type="button" onClick={toggleAnswer}>
+                  {answerRevealed ? copy.hideAnswer : copy.showAnswer}
+                </button>
+                {game.path.length > 1 && !showingAnswer ? (
+                  <button className="tool-button" type="button" onClick={() => rewindTo(game.path.length - 2)}>{copy.undo}</button>
+                ) : null}
+              </div>
+              {hint && !game.won && !showingAnswer ? (
+                <aside className="court-hint" aria-live="polite" title={copy.hintTeam}>
+                  <span>{copy.hintTitle}</span>
+                  <NbaTeamClue evidence={hint.evidence} />
+                  {hintNamed ? (
+                    <strong><NbaPlayerPortrait entity={entityOrThrow(graph, hint.nextId)} size="small" />{entityOrThrow(graph, hint.nextId).label}</strong>
+                  ) : null}
+                </aside>
+              ) : null}
+            </>
+          )}
         />
       </div>
 
-      {!game.won ? (
+      {showingAnswer ? (
+        game.won ? null : <button className="tool-button stage-resume" type="button" onClick={toggleAnswer}>{copy.keepPlaying}</button>
+      ) : !game.won && !finishing ? (
         <PlayerSearch
           graph={graph}
           currentPlayer={chain.at(-1) ?? start}
@@ -313,20 +427,7 @@ function GameBoard({
         />
       ) : null}
 
-      {feedback ? <EvidenceCard feedback={feedback} copy={copy} /> : null}
-
-      {answerRevealed && optimalChain.length ? (
-        <section className="optimal-path assist-answer" aria-live="polite">
-          <h3>{copy.optimalTitle}</h3>
-          <NbaChainView
-            chain={optimalChain}
-            links={optimalLinks}
-            targetReached
-            completionLabel={copy.celebration}
-            finishLabel={copy.finish}
-          />
-        </section>
-      ) : null}
+      {feedback && !showingAnswer ? <EvidenceCard feedback={feedback} copy={copy} /> : null}
 
       {game.won && shortest ? (
         <section className="win-panel" aria-live="polite">
@@ -336,7 +437,12 @@ function GameBoard({
             <div><strong>{linkCount(game)}</strong><span>{copy.links}</span></div>
             <span className="score-vs">vs</span>
             <div><strong>{shortest.links}</strong><span>{copy.shortest}</span></div>
+            <div><strong>{hintsUsed}</strong><span>{copy.hints}</span></div>
           </div>
+          {streak ? <p className="win-streak">{copy.streak(streak)}</p> : null}
+          <button className="win-another-button" type="button" onClick={mode === "daily" ? onPlayAnother : onNewMatchup}>
+            {mode === "daily" ? copy.playAnother : copy.newMatchup}<span aria-hidden="true">→</span>
+          </button>
         </section>
       ) : null}
 
@@ -347,11 +453,13 @@ function GameBoard({
 
 export function App() {
   const [locale, setLocale] = useState<Locale>(initialLocale);
-  const [difficulty, setDifficulty] = useState<DailyDifficulty>("easy");
-  const [mode, setMode] = useState<GameMode>("daily");
-  const [unlimitedPair, setUnlimitedPair] = useState<DailyEntry | null>(null);
-  const unlimitedSerial = useRef(0);
-  const [unlimitedError, setUnlimitedError] = useState<string | null>(null);
+  const [mode, setMode] = useState<AppMode>("daily");
+  const [archiveSlate, setArchiveSlate] = useState<ResolvedDailySlate | null>(null);
+  const [archiveOpen, setArchiveOpen] = useState(false);
+  const [solves, setSolves] = useState<DailySolves>({});
+  const [extraPair, setExtraPair] = useState<DailyEntry | null>(null);
+  const extraSerial = useRef(0);
+  const [extraError, setExtraError] = useState<string | null>(null);
   const [loaded, setLoaded] = useState<LoadedGame | null>(null);
   const [error, setError] = useState<Error | null>(null);
   const copy = COPY[locale];
@@ -367,6 +475,7 @@ export function App() {
       if (cancelled) return;
       const graph = new ConnectionGraph(dataset.entities, dataset.groups);
       selectDailySlate(schedule, new Date(), graph);
+      setSolves(loadDailySolves(browserStorage(), nbaAdapter.id));
       setLoaded({ namespace: nbaAdapter.id, graph, schedule, source: dataset.source });
     }).catch((reason: unknown) => {
       if (!cancelled) setError(reason instanceof Error ? reason : new Error(String(reason)));
@@ -378,69 +487,65 @@ export function App() {
     () => loaded ? selectDailySlate(loaded.schedule, new Date(), loaded.graph) : null,
     [loaded],
   );
-  const displayDate = slate ? new Intl.DateTimeFormat(locale === "zh" ? "zh-CN" : "en-US", {
-    month: "short",
-    day: "numeric",
-    year: "numeric",
-    timeZone: loaded?.schedule.timeZone,
-  }).format(new Date(`${slate.date}T12:00:00Z`)) : "";
+  const pastSlates = useMemo(
+    () => loaded ? pastDailySlates(loaded.schedule, new Date()) : [],
+    [loaded],
+  );
+  const shownSlate = mode === "archive" ? archiveSlate : slate;
+  const displayDate = shownSlate ? formatPuzzleDate(shownSlate.date, locale) : "";
   const activePuzzle = loaded
-    ? mode === "daily" ? slate?.[difficulty] ?? null : unlimitedPair
+    ? mode === "extra" ? extraPair : shownSlate?.easy ?? null
     : null;
+  const boardMode: GameMode = mode === "extra" ? "extra" : "daily";
 
-  const generateUnlimited = (nextDifficulty: DailyDifficulty) => {
+  const generateExtra = () => {
     if (!loaded) return;
+    setArchiveOpen(false);
     try {
-      const serial = unlimitedSerial.current + 1;
-      unlimitedSerial.current = serial;
-      setUnlimitedPair(randomNbaPuzzle(loaded.graph, nextDifficulty, serial));
-      setUnlimitedError(null);
+      const serial = extraSerial.current + 1;
+      extraSerial.current = serial;
+      setExtraPair(randomNbaPuzzle(loaded.graph, serial));
+      setExtraError(null);
     } catch (reason: unknown) {
-      setUnlimitedError(reason instanceof Error ? reason.message : String(reason));
+      setExtraError(reason instanceof Error ? reason.message : String(reason));
     }
   };
 
-  const changeMode = (nextMode: GameMode) => {
-    setMode(nextMode);
-    if (nextMode === "unlimited" && (!unlimitedPair || unlimitedPair.difficulty !== difficulty)) {
-      generateUnlimited(difficulty);
-    }
-  };
+  // Only today's puzzle, finished while it is still today, counts toward the streak.
+  const recordTodaySolved = useCallback((solve: DailySolve) => {
+    if (!loaded || !slate || selectDailySlate(loaded.schedule).date !== slate.date) return;
+    setSolves(recordDailySolve(browserStorage(), loaded.namespace, slate.date, solve));
+  }, [loaded, slate]);
+  const stats = slate ? dailyStats(solves, slate.date) : null;
 
-  const changeDifficulty = (nextDifficulty: DailyDifficulty) => {
-    setDifficulty(nextDifficulty);
-    if (mode === "unlimited") generateUnlimited(nextDifficulty);
+  const playAnother = () => {
+    setArchiveOpen(false);
+    setMode("extra");
+    if (!extraPair) generateExtra();
   };
 
   return (
     <main className="site-shell">
-      <header className="site-header">
-        <a className="wordmark" href={appBaseUrl} aria-label="AlleyLoop home">
-          <span className="wordmark-ball" aria-hidden="true"><i /></span>
-          AlleyLoop
-        </a>
-        <div className="header-actions">
-          <details className="rules-popover">
-            <summary>{copy.rulesTitle}</summary>
-            <div>
-              <p>{copy.rulesBody}</p>
-              <p>{copy.ruleDefinition}</p>
-            </div>
-          </details>
-          <div className="language-switch" aria-label="Language / 语言">
-            <button type="button" className={locale === "en" ? "active" : ""} onClick={() => setLocale("en")}>EN</button>
-            <button type="button" className={locale === "zh" ? "active" : ""} onClick={() => setLocale("zh")}>中文</button>
-          </div>
-        </div>
-      </header>
+      <SiteHeader locale={locale} onLocaleChange={setLocale} section="nba">
+        <HeaderPopover title={copy.rulesTitle}>
+          <ol>{copy.rules.map((rule) => <li key={rule}>{rule}</li>)}</ol>
+        </HeaderPopover>
+        <HeaderPopover title={copy.statsTitle}>
+          <dl className="stats-panel">
+            <div><dt>{copy.statSolved}</dt><dd>{stats?.solved ?? 0}</dd></div>
+            <div><dt>{copy.statCurrent}</dt><dd>{stats?.current ?? 0}</dd></div>
+            <div><dt>{copy.statBest}</dt><dd>{stats?.best ?? 0}</dd></div>
+            <div><dt>{copy.statShortest}</dt><dd>{stats?.solved ? `${Math.round(100 * stats.matchedShortest / stats.solved)}%` : "–"}</dd></div>
+          </dl>
+        </HeaderPopover>
+      </SiteHeader>
 
       <section className="hero">
         <div>
-          <p className="eyebrow">{mode === "daily" ? copy.today : copy.unlimited}{mode === "daily" && slate ? ` · ${displayDate}` : ""}</p>
+          <p className="eyebrow">{mode === "daily" ? copy.today : mode === "archive" ? copy.pastPuzzle : copy.moreGames}{mode !== "extra" && shownSlate ? ` · ${displayDate}` : ""}</p>
           <h1>{copy.heroTitle}</h1>
-          <p>{mode === "daily" ? copy.heroBody : copy.unlimitedBody}</p>
+          <p>{mode === "daily" ? copy.heroBody : copy.extraBody}</p>
         </div>
-        <div className="hero-loop" aria-hidden="true"><span>PASS</span><i /><span>DUNK</span></div>
       </section>
 
       {error ? (
@@ -452,35 +557,50 @@ export function App() {
         <section className="load-state"><span className="loading-ball" aria-hidden="true" /><p>{copy.loading}</p></section>
       ) : (
         <>
-          <nav className="mode-tabs" aria-label="Game mode">
-            <button type="button" className={mode === "daily" ? "active" : ""} aria-pressed={mode === "daily"} onClick={() => changeMode("daily")}>
-              <span>01</span>{copy.daily}<small>{copy.today}</small>
-            </button>
-            <button type="button" className={mode === "unlimited" ? "active" : ""} aria-pressed={mode === "unlimited"} onClick={() => changeMode("unlimited")}>
-              <span>02</span>{copy.unlimited}<small>∞</small>
-            </button>
-          </nav>
-          <nav className="difficulty-tabs" aria-label="Puzzle difficulty">
-            <button type="button" className={difficulty === "easy" ? "active" : ""} aria-pressed={difficulty === "easy"} onClick={() => changeDifficulty("easy")}>
-              <span>01</span>{copy.easy}<small>≤ 4</small>
-            </button>
-            <button type="button" className={difficulty === "hard" ? "active" : ""} aria-pressed={difficulty === "hard"} onClick={() => changeDifficulty("hard")}>
-              <span>02</span>{copy.hard}<small>4–6</small>
-            </button>
-          </nav>
-          {mode === "unlimited" && unlimitedError ? (
-            <p className="mode-error" role="alert">{copy.unlimitedError}</p>
+          <div className="puzzle-navigation">
+            <span>{mode === "extra" ? copy.extraGame : `${mode === "daily" ? copy.daily : copy.pastPuzzle} #${(shownSlate?.index ?? 0) + 1}`}</span>
+            <div>
+              {mode === "extra" ? <button type="button" onClick={generateExtra}>{copy.newMatchup}</button> : null}
+              {pastSlates.length ? (
+                <button type="button" aria-expanded={archiveOpen} aria-controls="past-puzzles" onClick={() => setArchiveOpen((open) => !open)}>
+                  {copy.pastPuzzles}
+                </button>
+              ) : null}
+              <button type="button" onClick={mode === "daily" ? playAnother : () => { setArchiveOpen(false); setMode("daily"); }}>
+                {mode === "daily" ? copy.playAnother : copy.backToDaily}<span aria-hidden="true">→</span>
+              </button>
+            </div>
+          </div>
+          {archiveOpen ? (
+            <PastPuzzles
+              slates={pastSlates}
+              graph={loaded.graph}
+              namespace={loaded.namespace}
+              locale={locale}
+              activeDate={mode === "archive" ? archiveSlate?.date : undefined}
+              onSelect={(selected) => {
+                setArchiveSlate(selected);
+                setMode("archive");
+                setArchiveOpen(false);
+              }}
+            />
+          ) : null}
+          {mode === "extra" && extraError ? (
+            <p className="mode-error" role="alert">{copy.extraError}</p>
           ) : null}
           {activePuzzle ? (
             <GameBoard
               key={`${mode}-${activePuzzle.id ?? `${activePuzzle.startId}-${activePuzzle.targetId}`}`}
               graph={loaded.graph}
               puzzle={activePuzzle}
-              date={mode === "daily" ? slate?.date ?? "" : activePuzzle.id ?? "unlimited"}
+              date={mode === "extra" ? activePuzzle.id ?? "extra" : shownSlate?.date ?? ""}
               locale={locale}
-              namespace={mode === "daily" ? loaded.namespace : `${loaded.namespace}:unlimited:${difficulty}`}
-              mode={mode}
-              onNewMatchup={mode === "unlimited" ? () => generateUnlimited(difficulty) : undefined}
+              namespace={mode === "extra" ? `${loaded.namespace}:extra` : loaded.namespace}
+              mode={boardMode}
+              onNewMatchup={mode === "extra" ? generateExtra : undefined}
+              onPlayAnother={mode === "extra" ? undefined : playAnother}
+              onSolved={mode === "daily" ? recordTodaySolved : undefined}
+              streak={mode === "daily" ? stats?.current : undefined}
             />
           ) : null}
         </>
@@ -488,7 +608,7 @@ export function App() {
 
       <footer className="site-footer">
         <p>{copy.dataNote}</p>
-        {loaded ? <span>{loaded.graph.entities().length.toLocaleString()} players · {loaded.graph.groups().length.toLocaleString()} team seasons</span> : null}
+        <AuthorLink locale={locale} />
       </footer>
     </main>
   );

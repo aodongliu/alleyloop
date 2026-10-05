@@ -13,7 +13,7 @@ import argparse
 import json
 import sys
 from collections import deque
-from datetime import date
+from datetime import date, timedelta
 from itertools import combinations
 from pathlib import Path
 from typing import Any
@@ -116,8 +116,8 @@ def _slate_entries(document: dict[str, Any], errors: list[str]) -> list[tuple[st
             if not isinstance(slate, dict):
                 errors.append(f"{prefix} must be an object")
                 continue
-            if set(slate) != {"date", "easy", "hard"}:
-                errors.append(f"{prefix} must contain exactly date, easy, and hard")
+            if set(slate) != {"date", "easy"}:
+                errors.append(f"{prefix} must contain exactly date and easy")
                 continue
             entries.append((prefix, slate))
     else:
@@ -126,8 +126,8 @@ def _slate_entries(document: dict[str, Any], errors: list[str]) -> list[tuple[st
             if not isinstance(slate, dict):
                 errors.append(f"{prefix} must be an object")
                 continue
-            if set(slate) != {"easy", "hard"}:
-                errors.append(f"{prefix} must contain exactly easy and hard")
+            if set(slate) != {"easy"}:
+                errors.append(f"{prefix} must contain exactly easy")
                 continue
             entries.append((prefix, {"date": slate_date, **slate}))
     return entries
@@ -173,7 +173,17 @@ def validate_puzzles(graph: dict[str, Any], puzzles: dict[str, Any]) -> list[str
 
     seen_dates: set[str] = set()
     seen_puzzle_ids: set[str] = set()
-    for slate_prefix, slate in slates:
+    seen_matchups: set[frozenset[str]] = set()
+    try:
+        anchor_day = date.fromisoformat(anchor) if _is_string(anchor) else None
+    except ValueError:
+        anchor_day = None
+    for slate_index, (slate_prefix, slate) in enumerate(slates):
+        # The client picks a slate by counting days from anchorDate, so the dates must be consecutive.
+        if anchor_day is not None and isinstance(puzzles.get("slates"), list):
+            expected_date = (anchor_day + timedelta(days=slate_index)).isoformat()
+            if slate.get("date") != expected_date:
+                errors.append(f"{slate_prefix}.date must be {expected_date} to follow anchorDate without gaps")
         slate_date = slate.get("date")
         if not _is_string(slate_date):
             errors.append(f"{slate_prefix}.date must be an ISO date")
@@ -186,7 +196,7 @@ def validate_puzzles(graph: dict[str, Any], puzzles: dict[str, Any]) -> list[str
                 errors.append(f"duplicate slate date: {slate_date}")
             seen_dates.add(slate_date)
 
-        for difficulty in ("easy", "hard"):
+        for difficulty in ("easy",):
             puzzle = slate.get(difficulty)
             prefix = f"{slate_prefix}.{difficulty}"
             if not isinstance(puzzle, dict):
@@ -224,6 +234,11 @@ def validate_puzzles(graph: dict[str, Any], puzzles: dict[str, Any]) -> list[str
                     errors.append(f"{prefix}.{name} must reference a graph entity")
             if start == target and _is_string(start):
                 errors.append(f"{prefix} startId and targetId must differ")
+            elif _is_string(start) and _is_string(target):
+                matchup = frozenset((start, target))
+                if matchup in seen_matchups:
+                    errors.append(f"{prefix} repeats an earlier matchup: {start} and {target}")
+                seen_matchups.add(matchup)
 
             era_gap = puzzle.get("eraGapYears")
             if isinstance(era_gap, bool) or not isinstance(era_gap, int) or era_gap < 0:
@@ -263,10 +278,8 @@ def validate_puzzles(graph: dict[str, Any], puzzles: dict[str, Any]) -> list[str
             expected = puzzle.get("expectedShortestLinks")
             if isinstance(expected, bool) or not isinstance(expected, int):
                 errors.append(f"{prefix}.expectedShortestLinks must be an integer")
-            elif difficulty == "easy" and not (1 <= expected <= 4):
+            elif not (1 <= expected <= 4):
                 errors.append(f"{prefix} Easy shortest distance must be 1–4")
-            elif difficulty == "hard" and not (4 <= expected <= 6):
-                errors.append(f"{prefix} Hard shortest distance must be 4–6")
             if not _is_string(puzzle.get("curationNote")):
                 errors.append(f"{prefix}.curationNote must be a non-empty string")
 

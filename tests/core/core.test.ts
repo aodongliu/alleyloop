@@ -1,8 +1,9 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { ConnectionGraph, normalizeSearchText } from "../../src/core/graph.ts";
-import { createGame, linkCount, nextShortestHint, revealShortestPath, rewindGame, submitConnection } from "../../src/core/game.ts";
-import { selectDailyChallenge, selectDailySlate } from "../../src/core/daily.ts";
+import { createGame, finishIfLinked, linkCount, nextShortestHint, revealShortestPath, rewindGame, submitConnection } from "../../src/core/game.ts";
+import { dailyStats, loadDailySolves, recordDailySolve } from "../../src/game/stats.ts";
+import { pastDailySlates, selectDailyChallenge, selectDailySlate } from "../../src/core/daily.ts";
 
 const entities = ["a", "b", "c", "d", "e"].map((id) => ({
   id,
@@ -64,18 +65,21 @@ test("a longer valid chain wins despite a shorter available route", () => {
   assert.deepEqual(revealShortestPath(graph, final.state), { ids: ["a", "c", "d", "e"], links: 3 });
 });
 
-test("hint reveals shared evidence, not the unused player on the shortest remaining route", () => {
+test("hint carries the shared evidence and the next unused player on the shortest remaining route", () => {
   let state = createGame("a", "e");
   assert.deepEqual(nextShortestHint(graph, state), {
+    nextId: "c",
     evidence: [{ groupId: "g1", label: "Club One", period: "2020", metadata: undefined }],
   });
   state = submitConnection(graph, state, "b").state;
   assert.deepEqual(nextShortestHint(graph, state), {
+    nextId: "c",
     evidence: [{ groupId: "g1", label: "Club One", period: "2020", metadata: undefined }],
   });
   state = submitConnection(graph, state, "c").state;
   state = submitConnection(graph, state, "d").state;
   assert.deepEqual(nextShortestHint(graph, state), {
+    nextId: "e",
     evidence: [{ groupId: "g3", label: "Club Three", period: "2022", metadata: undefined }],
   });
   state = submitConnection(graph, state, "e").state;
@@ -145,4 +149,72 @@ test("daily selection is timezone-stable, deterministic, and has only easy/hard"
   const selected = selectDailySlate(schedule, now);
   assert.equal(selected.id, "opening-day");
   assert.equal(selected.date, "2026-08-15");
+});
+
+test("past daily slates list earlier days newest first and never include today", () => {
+  const entry = (id: string) => ({ easy: { id, startId: "a", targetId: "b", difficulty: "easy" as const } });
+  const schedule = {
+    anchorDate: "2026-08-15",
+    timeZone: "America/Los_Angeles",
+    slates: [entry("day-1"), entry("day-2"), entry("day-3"), entry("day-4")],
+  };
+  assert.deepEqual(pastDailySlates(schedule, new Date("2026-08-15T20:00:00Z")), []);
+  assert.deepEqual(pastDailySlates(schedule, new Date("2026-08-01T20:00:00Z")), []);
+  const now = new Date("2026-08-17T20:00:00Z");
+  assert.equal(selectDailySlate(schedule, now).easy.id, "day-3");
+  assert.deepEqual(
+    pastDailySlates(schedule, now).map((slate) => [slate.easy.id, slate.date, slate.index]),
+    [["day-2", "2026-08-16", 1], ["day-1", "2026-08-15", 0]],
+  );
+  // Late evening in Los Angeles is already the next UTC day; the schedule follows Los Angeles.
+  assert.equal(pastDailySlates(schedule, new Date("2026-08-17T05:00:00Z")).length, 1);
+});
+
+test("a chain finishes itself once the latest player links to the target", () => {
+  // The opening position is never finished automatically, even when start and target are linked.
+  assert.equal(finishIfLinked(graph, createGame("a", "c")), null);
+  let state = submitConnection(graph, createGame("a", "e"), "c").state;
+  assert.equal(finishIfLinked(graph, state), null);
+  state = submitConnection(graph, state, "d").state;
+  const finish = finishIfLinked(graph, state);
+  assert.deepEqual(finish?.state.path, ["a", "c", "d", "e"]);
+  assert.equal(finish?.won, true);
+  assert.ok(finish?.evidence.length);
+  assert.equal(finishIfLinked(graph, finish!.state), null);
+});
+
+test("the best-known shortest path prefers higher search rank and respects exclusions", () => {
+  const ranked = new ConnectionGraph(
+    [{ id: "s" }, { id: "obscure", searchRank: 5 }, { id: "star", searchRank: 90 }, { id: "t" }].map((entity) => ({ label: entity.id, ...entity })),
+    [
+      { id: "g1", label: "G1", period: "1", memberIds: ["s", "obscure", "star"] },
+      { id: "g2", label: "G2", period: "2", memberIds: ["obscure", "star", "t"] },
+    ],
+  );
+  assert.deepEqual(ranked.shortestPath("s", "t")?.ids, ["s", "obscure", "t"]);
+  assert.deepEqual(ranked.prominentShortestPath("s", "t"), { ids: ["s", "star", "t"], links: 2 });
+  assert.deepEqual(ranked.prominentShortestPath("s", "t", ["star"])?.ids, ["s", "obscure", "t"]);
+  assert.equal(ranked.prominentShortestPath("s", "t", ["star", "obscure"]), null);
+  assert.equal(nextShortestHint(ranked, createGame("s", "t"))?.nextId, "star");
+  // While the chain is still on the answer that will be shown, the hint follows that answer.
+  assert.equal(nextShortestHint(ranked, createGame("s", "t"), ["s", "obscure", "t"])?.nextId, "obscure");
+  const offAnswer = submitConnection(ranked, createGame("s", "t"), "obscure").state;
+  assert.equal(nextShortestHint(ranked, offAnswer, ["s", "star", "t"])?.nextId, "t");
+});
+
+test("daily stats count streaks, shortest matches and hints, and keep the first result per day", () => {
+  const data = new Map<string, string>();
+  const storage = { getItem: (key: string) => data.get(key) ?? null, setItem: (key: string, value: string) => { data.set(key, value); }, removeItem: (key: string) => { data.delete(key); } };
+  assert.deepEqual(dailyStats(loadDailySolves(storage, "nba"), "2026-10-05"), { solved: 0, current: 0, best: 0, matchedShortest: 0, averageHints: 0 });
+  for (const date of ["2026-10-05", "2026-10-06", "2026-10-08", "2026-10-09"]) recordDailySolve(storage, "nba", date, { links: 2, shortest: 2, hints: 0 });
+  recordDailySolve(storage, "nba", "2026-10-10", { links: 4, shortest: 2, hints: 5 });
+  // Replaying a finished day cannot overwrite its first result.
+  recordDailySolve(storage, "nba", "2026-10-10", { links: 2, shortest: 2, hints: 0 });
+  const solves = loadDailySolves(storage, "nba");
+  assert.deepEqual(dailyStats(solves, "2026-10-10"), { solved: 5, current: 3, best: 3, matchedShortest: 4, averageHints: 1 });
+  // Today is still open, so yesterday's streak is intact; a full missed day ends it.
+  assert.equal(dailyStats(solves, "2026-10-11").current, 3);
+  assert.equal(dailyStats(solves, "2026-10-12").current, 0);
+  data.set("alleyloop:nba:stats:v1", "not json");
+  assert.deepEqual(loadDailySolves(storage, "nba"), {});
 });

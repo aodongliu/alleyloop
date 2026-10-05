@@ -173,6 +173,46 @@ export class ConnectionGraph {
     }
     return { ids, links: ids.length - 1 };
   }
+
+  /**
+   * A shortest path that takes the best-known entity (highest searchRank) at each
+   * step, so answers and hints name someone a player has a fair chance to know.
+   */
+  prominentShortestPath(
+    start: EntityId,
+    target: EntityId,
+    excludedIds: Iterable<EntityId> = [],
+  ): ShortestPath | null {
+    if (!this.entityById.has(start) || !this.entityById.has(target)) return null;
+    if (start === target) return { ids: [start], links: 0 };
+    const excluded = new Set(excludedIds);
+    excluded.delete(start);
+    excluded.delete(target);
+    // Distances back from the target; every step toward it then has a known remaining length.
+    const distance = new Map<EntityId, number>([[target, 0]]);
+    const queue: EntityId[] = [target];
+    for (let cursor = 0; cursor < queue.length; cursor += 1) {
+      const current = queue[cursor];
+      if (current === start) break;
+      for (const next of this.neighbors(current)) {
+        if (distance.has(next) || excluded.has(next)) continue;
+        distance.set(next, distance.get(current)! + 1);
+        queue.push(next);
+      }
+    }
+    if (!distance.has(start)) return null;
+    const rank = (id: EntityId): number => this.entityById.get(id)?.searchRank ?? 0;
+    const ids: EntityId[] = [start];
+    while (ids.at(-1) !== target) {
+      const remaining = distance.get(ids.at(-1)!)! - 1;
+      let best: EntityId | undefined;
+      for (const next of this.neighbors(ids.at(-1)!)) {
+        if (distance.get(next) === remaining && (best === undefined || rank(next) > rank(best))) best = next;
+      }
+      ids.push(best!);
+    }
+    return { ids, links: ids.length - 1 };
+  }
 }
 
 export { fold as normalizeSearchText };
