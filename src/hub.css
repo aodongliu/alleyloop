@@ -96,8 +96,8 @@
   margin-top: 22px;
   padding: 11px 22px;
   border-radius: 999px;
-  background: #f3efe7;
-  color: #302e2b;
+  background: #ffffff;
+  color: #0d1d22;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.5;
@@ -185,3 +185,6 @@
   .hub-banner > img, .hub-play-button, .hub-planned-card { transition: none; }
   .hub-banner:hover > img, .hub-banner:hover .hub-play-button { transform: none; }
 }
+
+/* Lagoon: gradient title, like the website hero line. */
+.hub-hero h1 { background-image: var(--title-grad); -webkit-background-clip: text; background-clip: text; color: transparent; }

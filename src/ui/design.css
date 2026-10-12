@@ -15,21 +15,24 @@
 }
 :root {
   color-scheme: light;
-  --bg: #f3efe7;
-  --panel: #faf7f1;
-  --panel-alt: #eae4d9;
-  --ink: #302e2b;
-  --muted: #696359;
-  --line: #ddd5c8;
-  --soft: #71675a;
-  --accent: #a4532d;
-  --tint: #efe3cf;
-  --success: #306346;
-  --success-bg: #e8efe6;
-  --danger: #9c3e34;
-  --danger-bg: #f5e3dd;
-  --shadow: 0 1px 2px #3b2c1e0f, 0 6px 20px #3b2c1e0d;
-  --shadow-hover: 0 2px 4px #3b2c1e14, 0 14px 32px #3b2c1e1a;
+  /* Lagoon palette, matching aodongliu.github.io (themes/matery/source/css/site.css). */
+  --bg: #fbfefe;
+  --panel: #ffffff;
+  --panel-alt: #eef6f7;
+  --ink: #0d1d22;
+  --muted: #56686e;
+  --line: #dfeced;
+  --soft: #244047;
+  --accent: #0f7f87;
+  --tint: #dff3f2;
+  --success: #17704b;
+  --success-bg: #ddf3e8;
+  --danger: #b0392f;
+  --danger-bg: #fbe5e2;
+  --shadow: 0 1px 2px #0f4f550d, 0 8px 24px #0f4f550d;
+  --shadow-hover: 0 2px 4px #0f4f5514, 0 14px 32px #0f4f551a;
+  --bg-pattern: radial-gradient(1000px 520px at 95% 0%, #d6f1f0 0, transparent 62%), radial-gradient(800px 540px at 0% 45%, #dce9fb 0, transparent 62%), radial-gradient(900px 560px at 100% 90%, #d9f3ee 0, transparent 62%);
+  --title-grad: linear-gradient(90deg, #0f8f8a, #2a7fd4 55%, #4b54c9);
   --font: "Geist", system-ui, -apple-system, "Segoe UI", sans-serif;
   --mono: "Geist Mono", ui-monospace, Menlo, monospace;
   color: var(--ink);
@@ -41,24 +44,26 @@
 }
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #302e2c;
-  --panel: #3b3834;
-  --panel-alt: #45413b;
-  --ink: #f2ede4;
-  --muted: #c8bfb2;
-  --line: #59534a;
-  --soft: #d4c7b5;
-  --accent: #e9a47c;
-  --tint: #4f473b;
-  --success: #b6d2b5;
-  --success-bg: #354338;
-  --danger: #f0b4a4;
-  --danger-bg: #503b36;
-  --shadow: 0 1px 2px #0003, 0 6px 20px #0002;
-  --shadow-hover: 0 2px 4px #0004, 0 14px 32px #0003;
+  --bg: #061417;
+  --panel: #0c1f23;
+  --panel-alt: #112a30;
+  --ink: #e6f4f4;
+  --muted: #93aeb1;
+  --line: #1b3439;
+  --soft: #c6e0e2;
+  --accent: #5fe0d0;
+  --tint: #133236;
+  --success: #93dcb7;
+  --success-bg: #16332a;
+  --danger: #f2a49a;
+  --danger-bg: #3a1f1d;
+  --shadow: none;
+  --shadow-hover: 0 14px 32px #0005;
+  --bg-pattern: radial-gradient(1000px 520px at 95% 0%, #0d3a3c 0, transparent 62%), radial-gradient(800px 540px at 0% 45%, #0e2a4d 0, transparent 62%), radial-gradient(900px 560px at 100% 90%, #0b3433 0, transparent 62%);
+  --title-grad: linear-gradient(90deg, #5fe0d0, #6fb2ff 55%, #9a9cff);
 }
 * { box-sizing: border-box; }
-body { min-height: 100vh; margin: 0; background: var(--bg); color: var(--ink); }
+body { min-height: 100vh; margin: 0; background: var(--bg); background-image: var(--bg-pattern); color: var(--ink); }
 button, input { font: inherit; }
 button { cursor: pointer; }
 button:disabled { cursor: not-allowed; }

@@ -13,7 +13,7 @@ function ThemeToggle({ locale }: { locale: Locale }) {
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
-    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#302e2c" : "#f3efe7");
+    document.querySelector('meta[name="theme-color"]')?.setAttribute("content", theme === "dark" ? "#061417" : "#fbfefe");
   }, [theme]);
 
   useEffect(() => {
